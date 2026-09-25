@@ -6,7 +6,6 @@ import {
   TrendingUp, Cpu, RefreshCw, Footprints, 
   Moon, Activity, Droplet
 } from "lucide-react";
-import { useAuthStore } from "@/stores/useAuthStore"; // Lấy thông tin user nếu cần
 
 const dailyMockData = [
   { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
@@ -20,6 +19,7 @@ const monthlyMockData = [
 ];
 
 export function HealthDashboardPage() {
+
   
   // State lưu số liệu hiện tại
   const [heartRate, setHeartRate] = useState<number>(0);
