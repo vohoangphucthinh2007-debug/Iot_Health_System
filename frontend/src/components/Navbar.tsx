@@ -160,6 +160,17 @@ export default function Navbar() {
                   <p><strong>Android/PC:</strong> Trình duyệt chưa hỗ trợ cài tự động, hãy bấm <em>Menu 3 chấm</em> {'->'} <em>Thêm vào Màn hình chính/Cài đặt ứng dụng</em>.</p>
                 </div>
               </div>
+              {/* NÚT TẢI FILE APK TRỰC TIẾP ÔNG VỪA THÊM */}
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Cài đặt trực tiếp (Android):</p>
+                <Button 
+                  variant="outline"
+                  className="w-full text-blue-600 border-blue-200 hover:bg-blue-50 font-bold"
+                  onClick={() => window.open("https://drive.google.com/file/d/1Op8O3PeTyqJAYSNO_6LMd0Rx_uoXrmFT/view?usp=sharinghttps://drive.google.com/file/d/1Op8O3PeTyqJAYSNO_6LMd0Rx_uoXrmFT/view?usp=sharing", "_blank")}
+                >
+                  Tải file cài đặt APK
+                </Button>
+              </div>
               
               <Button 
                 className="w-full mt-6 bg-slate-900 hover:bg-slate-800" 
