@@ -1,14 +1,11 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Heart, Activity, ArrowLeft, Clock, CalendarDays, CalendarSearch } from "lucide-react";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-// Dữ liệu mẫu cho Hằng Ngày và Hằng Tháng (Sau này ông có thể gọi API Backend để lấy data thật)
+// Dữ liệu mẫu cho Hằng Ngày và Hằng Tháng
 const dailyMockData = [
   { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
   { time: "T4", hr: 71, spo2: 99 }, { time: "T5", hr: 78, spo2: 96 },
@@ -21,9 +18,6 @@ const monthlyMockData = [
 ];
 
 export function HealthDashboardPage() {
-  const { signOut } = useAuthStore();
-  const navigate = useNavigate();
-
   // State lưu số liệu hiện tại
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -31,13 +25,16 @@ export function HealthDashboardPage() {
   // State lưu mảng dữ liệu cho biểu đồ Real-time
   const [liveData, setLiveData] = useState<any[]>([]);
   
-  // Chế độ xem: 'live' (Thời gian thực) | 'daily' (Hằng ngày) | 'monthly' (Hằng tháng)
+  // Chế độ xem: 'live' | 'daily' | 'monthly'
   const [viewMode, setViewMode] = useState<'live' | 'daily' | 'monthly'>('live');
 
   // Lắng nghe WebSockets
   useEffect(() => {
-    // Sửa IP thành IP máy tính nếu ông đang test trên điện thoại
-    const socket = io("http://localhost:5001"); 
+    // Tự động lấy URL từ file .env (cắt bỏ phần /api ở đuôi để kết nối đúng rễ của Socket.io)
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+    const socketUrl = apiUrl.replace('/api', '');
+    
+    const socket = io(socketUrl); 
 
     socket.on("sensorData", (data) => {
       setHeartRate(data.heartRate);

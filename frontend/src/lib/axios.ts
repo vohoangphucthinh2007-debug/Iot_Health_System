@@ -2,8 +2,10 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import axios from "axios";
 
 const api = axios.create({
-  baseURL:
-    import.meta.env.MODE === "development" ? "http://localhost:5001/api" : "/api",
+  // Tự động ăn theo file .env khi ở nhà, hoặc tự đổi thành "/api" khi đẩy lên Vercel/Render
+  baseURL: import.meta.env.VITE_API_URL || "/api",
+  
+  // Khai báo một lần ở đây là nó sẽ tự áp dụng cho toàn bộ các request ở dưới
   withCredentials: true,
 });
 
@@ -39,7 +41,8 @@ api.interceptors.response.use(
       originalRequest._retryCount += 1;
 
       try {
-        const res = await api.post("/auth/refresh", { withCredentials: true });
+        // Đã xóa phần truyền sai vị trí, chỉ gọi đúng endpoint
+        const res = await api.post("/auth/refresh");
         const newAccessToken = res.data.accessToken;
 
         useAuthStore.getState().setAccessToken(newAccessToken);

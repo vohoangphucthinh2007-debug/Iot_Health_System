@@ -1,6 +1,6 @@
-import { Bell, ShieldAlert, Lock, Moon, ArrowLeft } from "lucide-react";
+import { ShieldAlert, Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router"; // Lưu ý: React Router v6 thường dùng 'react-router-dom'
+import { Link } from "react-router"; 
 import { toast } from "sonner";
 
 export default function SettingsPage() {
