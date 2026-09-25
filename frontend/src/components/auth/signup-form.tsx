@@ -13,7 +13,7 @@ import axios from "@/lib/axios"; // Hoặc import từ cấu hình axios chuẩn
 const signUpSchema = z.object({
   firstname: z.string().min(1, "Tên bắt buộc phải có"),
   lastname: z.string().min(1, "Họ bắt buộc phải có"),
-  username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
+  username: z.string().min(5, "Tên đăng nhập phải có ít nhất 5 ký tự"),
   email: z.email("Email không hợp lệ"),
   password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
 });
