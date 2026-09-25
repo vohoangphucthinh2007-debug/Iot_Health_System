@@ -9,7 +9,7 @@ export const authService = {
     lastName: string
   ) => {
     const res = await api.post(
-      "/auth/signup",
+      "auth/signup", // Đã bỏ dấu /
       { username, password, email, firstName, lastName },
       { withCredentials: true }
     );
@@ -27,22 +27,21 @@ export const authService = {
   },
 
   signOut: async () => {
-    return api.post("/auth/signout", { withCredentials: true });
+    return api.post("auth/signout", { withCredentials: true }); // Đã bỏ dấu /
   },
 
   fetchMe: async () => {
-    const res = await api.get("/users/me", { withCredentials: true });
+    const res = await api.get("users/me", { withCredentials: true }); // Đã bỏ dấu /
     return res.data.user;
   },
 
   refresh: async () => {
-    const res = await api.post("/auth/refresh", { withCredentials: true });
+    const res = await api.post("auth/refresh", { withCredentials: true }); // Đã bỏ dấu /
     return res.data.accessToken;
   },
-  // Thêm hàm updateProfile vào
+  
   updateProfile: async (data: { displayName: string, phone: string, dateOfBirth: string, address: string }) => {
-    // URL này tùy thuộc vào route backend của ông, ví dụ /api/auth/profile
-    const response = await api.put("/users/profile", data, { withCredentials: true });
+    const response = await api.put("users/profile", data, { withCredentials: true }); // Đã bỏ dấu /
     return response.data;
   },
 };
