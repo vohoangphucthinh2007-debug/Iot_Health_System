@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
   Home, HeartPulse, Wind, BarChart3, Settings, 
   TrendingUp, Cpu, RefreshCw, Footprints, 
-  Moon, Activity, Droplet, Bell
+  Moon, Activity, Droplet
 } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore"; // Lấy thông tin user nếu cần
 
@@ -20,7 +20,6 @@ const monthlyMockData = [
 ];
 
 export function HealthDashboardPage() {
-  const { user } = useAuthStore(); // Lấy user từ Zustand (nếu muốn hiển thị tên)
   
   // State lưu số liệu hiện tại
   const [heartRate, setHeartRate] = useState<number>(0);
