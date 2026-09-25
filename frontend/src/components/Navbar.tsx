@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, ActivitySquare, Settings, LogOut, Home, BookOpen, X } from "lucide-react";
+import { User, ActivitySquare, Settings, LogOut, Home, BookOpen, X, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router"; 
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -9,12 +9,9 @@ export default function Navbar() {
   const [showAppGuide, setShowAppGuide] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  // Bắt sự kiện hệ thống cho phép cài đặt App (Chỉ hoạt động trên Android/Chrome)
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: any) => {
-      // Ngăn trình duyệt tự động hiện bảng quá sớm
       e.preventDefault();
-      // Lưu trữ lại sự kiện để gọi khi người dùng bấm nút
       setDeferredPrompt(e);
     };
 
@@ -22,17 +19,14 @@ export default function Navbar() {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
-  // Hàm xử lý khi bấm nút Tải App
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      // Máy hỗ trợ cài tự động (Android) -> Hiện bảng xác nhận của hệ thống
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setDeferredPrompt(null);
       }
     } else {
-      // Máy không hỗ trợ (iPhone) hoặc web chưa cấu hình đủ chuẩn PWA -> Hiện bảng dự phòng
       setShowAppGuide(true);
     }
   };
@@ -66,45 +60,50 @@ export default function Navbar() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             
-            {/* Nút tải App thông minh */}
             <Button 
               variant="outline" 
               size="sm"
               onClick={handleInstallClick}
-              className="text-[11px] sm:text-sm px-2 sm:px-3 h-7 sm:h-8 font-semibold text-blue-600 border-blue-200 hover:bg-blue-50"
+              className="text-[11px] sm:text-sm px-2 sm:px-3 h-8 sm:h-10 font-semibold text-blue-600 border-blue-200 hover:bg-blue-50"
             >
               Tải App
             </Button>
 
             {user ? (
-              <div className="relative group">
-                <Button variant="outline" size="sm" className="font-semibold flex items-center gap-1 text-[11px] sm:text-sm px-2 sm:px-3 h-7 sm:h-8">
-                  <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" /> 
-                  <span className="max-w-[70px] sm:max-w-[100px] truncate">
-                    {user.displayName || "Tài khoản"}
-                  </span>
-                </Button>
-                
-                <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="bg-white rounded-xl shadow-lg border border-slate-100 flex flex-col overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                      <p className="text-sm font-bold text-slate-900 truncate">{user.displayName || "Người dùng"}</p>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">{user.email}</p>
-                    </div>
-                    <div className="py-1">
-                      <Link to="/profile" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
-                        <User className="h-4 w-4" /> Thông tin cá nhân
-                      </Link>
-                      <Link to="/settings" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
-                        <Settings className="h-4 w-4" /> Cài đặt & Cảnh báo
-                      </Link>
-                    </div>
-                    <div className="border-t border-slate-100 py-1">
-                      <button onClick={signOut} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                        <LogOut className="h-4 w-4" /> Đăng xuất
-                      </button>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Nút chuông thông báo (Dạng hình vuông bo góc) */}
+                <button className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 bg-white rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center relative shadow-sm">
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                </button>
+
+                {/* Avatar tròn chứa chữ cái đầu & Dropdown menu */}
+                <div className="relative group">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] flex justify-center items-center text-[#0b9665] font-bold text-sm sm:text-base cursor-pointer border border-[#b5efd9] shadow-sm">
+                    {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  
+                  <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                    <div className="bg-white rounded-xl shadow-lg border border-slate-100 flex flex-col overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+                        <p className="text-sm font-bold text-slate-900 truncate">{user.displayName || "Người dùng"}</p>
+                        <p className="text-xs text-slate-500 truncate mt-0.5">{user.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <Link to="/profile" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                          <User className="h-4 w-4" /> Thông tin cá nhân
+                        </Link>
+                        <Link to="/settings" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                          <Settings className="h-4 w-4" /> Cài đặt & Cảnh báo
+                        </Link>
+                      </div>
+                      <div className="border-t border-slate-100 py-1">
+                        <button onClick={signOut} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                          <LogOut className="h-4 w-4" /> Đăng xuất
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -112,10 +111,10 @@ export default function Navbar() {
             ) : (
               <>
                 <Link to="/signin">
-                  <Button variant="outline" size="sm" className="text-[11px] sm:text-sm px-2 sm:px-3 h-7 sm:h-8 font-semibold">Đăng nhập</Button>
+                  <Button variant="outline" size="sm" className="text-[11px] sm:text-sm px-2 sm:px-3 h-8 sm:h-10 font-semibold">Đăng nhập</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button size="sm" className="text-[11px] sm:text-sm px-2 sm:px-3 h-7 sm:h-8 font-semibold bg-blue-600 hover:bg-blue-700">Đăng ký</Button>
+                  <Button size="sm" className="text-[11px] sm:text-sm px-2 sm:px-3 h-8 sm:h-10 font-semibold bg-blue-600 hover:bg-blue-700">Đăng ký</Button>
                 </Link>
               </>
             )}
@@ -161,7 +160,6 @@ export default function Navbar() {
                 </div>
               </div>
               
-              {/* NÚT TẢI FILE APK TRỰC TIẾP */}
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <p className="text-sm font-semibold text-slate-900 mb-2">Cài đặt trực tiếp (Android):</p>
                 <Button 

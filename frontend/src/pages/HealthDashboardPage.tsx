@@ -133,18 +133,6 @@ export function HealthDashboardPage() {
             <h1 className="text-[24px] md:text-[28px] font-bold">Chào buổi tối 👋</h1>
             <p className="text-[#8b96a5] text-[13px] mt-[5px]">Đây là tình trạng sức khỏe của bạn hôm nay.</p>
           </div>
-          
-          <div className="hidden md:flex items-center gap-[12px]">
-            {/* Nút chuông thông báo */}
-            <button className="w-[42px] h-[42px] border border-[#e8edf2] bg-white rounded-[11px] text-[#687486] cursor-pointer hover:bg-slate-50 transition-colors flex items-center justify-center relative">
-              <Bell className="w-[18px] h-[18px]" />
-              <span className="absolute top-[10px] right-[12px] w-[6px] h-[6px] bg-[#f45d69] rounded-full"></span>
-            </button>
-            {/* Avatar nhỏ trong page (Tùy chọn: có thể bỏ nếu thấy trùng với thanh Navbar trên cùng) */}
-            <div className="w-[42px] h-[42px] rounded-full bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] flex justify-center items-center text-[#0b9665] font-bold overflow-hidden cursor-pointer">
-              {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "NA"}
-            </div>
-          </div>
         </div>
 
         {/* HERO GRID */}
