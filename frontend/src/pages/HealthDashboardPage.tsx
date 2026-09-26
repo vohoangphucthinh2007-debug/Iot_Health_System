@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { 
   Home, HeartPulse, Wind, BarChart3, Settings, 
-  TrendingUp, Cpu, RefreshCw, Activity
+  TrendingUp, Cpu, RefreshCw
 } from "lucide-react";
 
 const dailyMockData = [
@@ -247,8 +247,7 @@ export function HealthDashboardPage() {
           <div className="w-full bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px] flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-[15px] gap-3">
               <div>
-                <div className="font-bold text-[16px]">Biến thiên chỉ số sinh tồn</div>
-                <div className="text-[#8b96a5] text-[12px] mt-[5px]">Biểu đồ nhịp tim và nồng độ Oxy theo thời gian thực</div>
+                <div className="font-bold text-[16px]">Biểu đồ nhịp tim và nồng độ Oxy theo thời gian thực</div>
               </div>
               <div className="flex bg-[#f5f7fb] p-1 rounded-[10px] shrink-0">
                 <button onClick={() => setViewMode('live')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'live' ? 'bg-white text-[#18b77a] shadow-sm' : 'text-[#8b96a5]'}`}>Live</button>
