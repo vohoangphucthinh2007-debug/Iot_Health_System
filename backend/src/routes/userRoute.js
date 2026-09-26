@@ -1,10 +1,11 @@
 import express from "express";
+import { updateProfile, getReports } from "../controllers/userController.js";
 import { authMe } from "../controllers/userController.js";
-import { updateProfile } from "../controllers/authController.js"; // Trỏ đúng về authController
 
 const router = express.Router();
 
 router.get("/me", authMe);
 router.put("/profile", updateProfile);
+router.get("/reports", getReports);
 
 export default router;

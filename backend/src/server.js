@@ -9,7 +9,11 @@ import http from "http";
 import { Server } from "socket.io";
 import { updateProfile } from "./controllers/authController.js"; 
 import cors from "cors";
-import mqtt from "mqtt"; // <-- 1. THÊM THƯ VIỆN MQTT Ở ĐÂY
+import mqtt from "mqtt"; 
+import cron from "node-cron";
+import Report from "./models/Report.js";
+import DailyStat from "./models/DailyStat.js"; // Import model lưu nháp
+import User from "./models/User.js"; // Import model User để lấy ID
 
 dotenv.config();
 
@@ -19,7 +23,7 @@ const PORT = process.env.PORT || 5001;
 // 1. Tạo HTTP server từ app Express
 const server = http.createServer(app);
 
-// Danh sách các nguồn được phép truy cập (Chấp nhận cả Localhost và mạng LAN IP)
+// Danh sách các nguồn được phép truy cập
 const allowedOrigins = [
   process.env.CLIENT_URL,
   "http://localhost:5173",
@@ -32,7 +36,6 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors({ 
   origin: function (origin, callback) {
-    // Cho phép các request không có origin (như Postman hoặc mobile app trực tiếp) hoặc nằm trong danh sách cho phép
     if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.startsWith("http://192.168.")) {
       callback(null, true);
     } else {
@@ -66,7 +69,7 @@ io.on("connection", (socket) => {
 });
 
 // ==========================================
-// 2. THÊM CẦU NỐI MQTT ĐỂ LẮNG NGHE ESP32
+// 4. CẦU NỐI MQTT & LƯU DB NHÁP
 // ==========================================
 const mqttClient = mqtt.connect("mqtt://broker.emqx.io:1883");
 
@@ -79,40 +82,104 @@ mqttClient.on("connect", () => {
   });
 });
 
-mqttClient.on("message", (topic, message) => {
+// Thêm async vào đây để dùng được await cho MongoDB
+mqttClient.on("message", async (topic, message) => {
   if (topic === "smartband_s3/dev01/telemetry") {
     try {
       const dataStr = message.toString();
       const telemetryData = JSON.parse(dataStr);
       
-      console.log(`📡 Nhận Telemetry từ MQTT - HR: ${telemetryData.hr}, SpO2: ${telemetryData.spo2}`);
+      const hr = telemetryData.hr || 0;
+      const spo2 = telemetryData.spo2 || 0;
+      const steps = telemetryData.steps || 0;
+      const calories = telemetryData.calories || 0;
+      
+      console.log(`📡 Nhận MQTT - HR: ${hr}, SpO2: ${spo2}, Bước: ${steps}, Calo: ${calories}`);
 
-      // Chuyển tiếp dữ liệu nhận từ MQTT xuống Frontend qua Socket.io
+      // Chuyển tiếp TẤT CẢ dữ liệu nhận từ MQTT xuống Frontend qua Socket.io
       io.emit("sensorData", {
-        heartRate: telemetryData.hr,
-        spO2: telemetryData.spo2
+        heartRate: hr,
+        spO2: spo2,
+        steps: steps,
+        calories: calories
       });
+
+      // LƯU VÀO DB NHÁP ĐỂ CUỐI NGÀY TÍNH TRUNG BÌNH
+      if (hr > 0 && spo2 > 0) {
+        const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+        
+        // Tìm 1 user mặc định để gán dữ liệu (vì hệ thống hiện tại đang gửi chung)
+        const user = await User.findOne(); 
+        
+        if (user) {
+          await DailyStat.findOneAndUpdate(
+            { userId: user._id, date: today },
+            { 
+              $inc: { totalHr: hr, totalSpo2: spo2, count: 1 }, // Cộng dồn để tính trung bình
+              $max: { maxHr: hr }, // Lưu kỷ lục cao nhất
+              $min: { minSpo2: spo2 }, // Lưu kỷ lục thấp nhất
+              $set: { steps: steps, calories: calories } // Cập nhật số bước mới nhất
+            },
+            { upsert: true, new: true } // Nếu chưa có thì tự tạo mới
+          );
+        }
+      }
     } catch (e) {
-      console.error("[-] Lỗi phân tích cú pháp JSON từ MQTT:", e);
+      console.error("[-] Lỗi xử lý dữ liệu MQTT:", e);
     }
+  }
+});
+
+// ==========================================
+// 5. CRONJOB: TỰ ĐỘNG CHỐT BÁO CÁO LÚC 23:59
+// ==========================================
+cron.schedule("59 23 * * *", async () => {
+  console.log("🕒 Đang tổng hợp báo cáo ngày...");
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const stats = await DailyStat.find({ date: today });
+
+    for (let stat of stats) {
+      // Tính trung bình
+      const avgHr = stat.count > 0 ? Math.round(stat.totalHr / stat.count) : 0;
+      const avgSpo2 = stat.count > 0 ? Math.round(stat.totalSpo2 / stat.count) : 0;
+
+      // Format ngày hiển thị cho đẹp: DD/MM/YYYY
+      const reportDate = new Date().toLocaleDateString('vi-VN'); 
+
+      // Tạo báo cáo chính thức
+      await Report.create({
+        userId: stat.userId,
+        date: reportDate,
+        type: "Báo cáo hàng ngày",
+        status: "Hoàn thành",
+        avgHr: avgHr,
+        avgSpo2: avgSpo2,
+        steps: stat.steps,
+        calo: stat.calories
+      });
+
+      // Xóa bản nháp sau khi tính toán xong cho sạch DB
+      await DailyStat.deleteOne({ _id: stat._id });
+    }
+    console.log(`✅ Đã chốt xong báo cáo cho ngày ${today}`);
+  } catch (error) {
+    console.error("❌ Lỗi khi sinh báo cáo tự động:", error);
   }
 });
 // ==========================================
 
-// Giả lập tín hiệu từ phần cứng ESP32 bắn lên mỗi 2 giây (giữ nguyên code cũ của ông)
-
 // public routes
 app.use("/api/auth", authRoute);
-
 app.put("/api/users/profile", protectedRoute, updateProfile);
 
 // private routes
 app.use(protectedRoute);
 app.use("/api/users", userRoute);
 
-// 4. QUAN TRỌNG: Thêm '0.0.0.0' để cho phép điện thoại và thiết bị ngoài kết nối vào Server
+// Chạy server
 connectDB().then(() => {
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server & Socket.io đang chạy trên cổng ${PORT} và sẵn sàng nhận kết nối mạng LAN!`);
+    console.log(`Server & Socket.io đang chạy trên cổng ${PORT} và sẵn sàng nhận kết nối!`);
   });
 });

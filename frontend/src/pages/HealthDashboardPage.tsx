@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   Home, HeartPulse, Wind, BarChart3, Settings, 
-  TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown
+  TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X
 } from "lucide-react";
 
 // Dữ liệu mẫu
@@ -26,18 +26,33 @@ const stepsMockData = [
   { day: "T2", steps: 4200 }, { day: "T3", steps: 6500 },
   { day: "T4", steps: 8100 }, { day: "T5", steps: 5200 },
   { day: "T6", steps: 9400 }, { day: "T7", steps: 7200 },
-  { day: "CN", steps: 7842 },
+  { day: "Hôm nay", steps: 0 }, // Sẽ tự động thay bằng số thật
+];
+
+const mockReports = [
+  { id: 1, date: "25/09/2026", type: "Báo cáo hàng ngày", status: "Hoàn thành", avgHr: 76, avgSpo2: 98, steps: 8200, calo: 2450 },
+  { id: 2, date: "22/09/2026", type: "Báo cáo hàng tuần", status: "Hoàn thành", avgHr: 74, avgSpo2: 97, steps: 54000, calo: 16500 },
+  { id: 3, date: "15/09/2026", type: "Báo cáo hàng tuần", status: "Hoàn thành", avgHr: 75, avgSpo2: 98, steps: 52100, calo: 15800 },
 ];
 
 export function HealthDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports'>('dashboard');
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
+  const [steps, setSteps] = useState<number>(0);
+  const [calories, setCalories] = useState<number>(0);
   const [liveData, setLiveData] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'live' | 'daily' | 'monthly'>('live');
   
-  const [sessionStats, setSessionStats] = useState({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minSpo2: 100 });
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+
+  const [sessionStats, setSessionStats] = useState({ 
+    sumHr: 0, sumSpo2: 0, count: 0, 
+    maxHr: 0, minHr: 999, 
+    maxSpo2: 0, minSpo2: 100 
+  });
+  
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
   useEffect(() => {
@@ -54,8 +69,11 @@ export function HealthDashboardPage() {
     });
 
     socket.on("sensorData", (data) => {
-      setHeartRate(data.heartRate);
-      setSpO2(data.spO2);
+      setHeartRate(data.heartRate || 0);
+      setSpO2(data.spO2 || 0);
+      // Gán dữ liệu bước chân và calo vào State
+      if (data.steps !== undefined) setSteps(data.steps);
+      if (data.calories !== undefined) setCalories(data.calories);
 
       setLiveData((prev) => {
         const now = new Date();
@@ -70,6 +88,8 @@ export function HealthDashboardPage() {
           sumSpo2: prev.sumSpo2 + data.spO2,
           count: prev.count + 1,
           maxHr: Math.max(prev.maxHr, data.heartRate),
+          minHr: prev.minHr === 999 ? data.heartRate : Math.min(prev.minHr, data.heartRate),
+          maxSpo2: Math.max(prev.maxSpo2, data.spO2),
           minSpo2: Math.min(prev.minSpo2, data.spO2)
         }));
       }
@@ -85,6 +105,13 @@ export function HealthDashboardPage() {
 
   const avgHr = sessionStats.count > 0 ? Math.round(sessionStats.sumHr / sessionStats.count) : 0;
   const avgSpo2 = sessionStats.count > 0 ? Math.round(sessionStats.sumSpo2 / sessionStats.count) : 0;
+  const maxHrDisp = sessionStats.count === 0 ? '--' : sessionStats.maxHr;
+  const minHrDisp = sessionStats.count === 0 ? '--' : sessionStats.minHr;
+  const maxSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.maxSpo2;
+  const minSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.minSpo2;
+  
+  // Tính tổng quãng đường từ số bước (1 bước ~ 0.7 mét)
+  const distanceKm = steps > 0 ? (steps * 0.0007).toFixed(2) : '--';
 
   const getChartData = () => {
     if (viewMode === 'daily') {
@@ -98,6 +125,12 @@ export function HealthDashboardPage() {
       return dynamicMonthly;
     }
     return liveData;
+  };
+
+  const getStepsChartData = () => {
+    const dynamicSteps = [...stepsMockData];
+    if (steps > 0) dynamicSteps[6] = { day: "Hôm nay", steps: steps };
+    return dynamicSteps;
   };
 
   const getHealthStatus = () => {
@@ -132,6 +165,10 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('statistics')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7]'}`}>
           <BarChart3 className="w-[18px] h-[18px]" /><span>Thống kê sức khoẻ</span>
         </button>
+        <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7]'}`}>
+          <FileText className="w-[18px] h-[18px]" /><span>Báo cáo</span>
+        </button>
+
         <button className="w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7] text-[14px] font-semibold transition-all cursor-pointer">
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
@@ -145,13 +182,13 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><Home className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><Wind className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><FileText className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 p-[20px] pb-[90px] md:pb-[60px] md:p-[30px_40px] max-w-[1500px] w-full">
+      <main className="flex-1 p-[20px] pb-[90px] md:pb-[60px] md:p-[30px_40px] max-w-[1500px] w-full relative">
         
-        {/* TAB 1: TỔNG QUAN (DASHBOARD) */}
+        {/* TAB 1: TỔNG QUAN */}
         {activeTab === 'dashboard' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="mb-[25px]">
@@ -207,7 +244,7 @@ export function HealthDashboardPage() {
                     <p className="text-[#8b96a5] text-[12px] mt-[5px]">Kết nối Socket.io · MAX30102</p>
                   </div>
                 </div>
-                <button onClick={() => setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minSpo2: 100 })} className="w-full border-none bg-[#e9faf3] text-[#18b77a] p-[10px_15px] rounded-[10px] font-semibold cursor-pointer hover:bg-[#d6f5e7] transition-colors flex justify-center items-center gap-2">
+                <button onClick={() => setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minHr: 999, maxSpo2: 0, minSpo2: 100 })} className="w-full border-none bg-[#e9faf3] text-[#18b77a] p-[10px_15px] rounded-[10px] font-semibold cursor-pointer hover:bg-[#d6f5e7] transition-colors flex justify-center items-center gap-2">
                   <RefreshCw className="w-[14px] h-[14px]" /> Khởi tạo lại phiên đo
                 </button>
               </div>
@@ -218,7 +255,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] text-[13px] font-medium">Nhịp tim</div>
-                    <div className="text-[30px] font-bold mt-[4px]">{heartRate || '--'} <small className="text-[14px] font-normal text-[#8b96a5]">BPM</small></div>
+                    <div className="text-[30px] font-bold mt-[4px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] font-normal text-[#8b96a5]">BPM</small></div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#18b77a] bg-[#e9faf3]">
                     <HeartPulse className={`w-[24px] h-[24px] ${heartRate > 0 ? 'animate-pulse' : ''}`} />
@@ -230,7 +267,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] text-[13px] font-medium">SpO₂</div>
-                    <div className="text-[30px] font-bold mt-[4px]">{spO2 || '--'}<small className="text-[14px] font-normal text-[#8b96a5]">%</small></div>
+                    <div className="text-[30px] font-bold mt-[4px]">{spO2 > 0 ? spO2 : '--'}<small className="text-[14px] font-normal text-[#8b96a5]">%</small></div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#4385f5] bg-[#edf4ff]">
                     <Wind className="w-[24px] h-[24px]" />
@@ -238,11 +275,12 @@ export function HealthDashboardPage() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[24px]">
+              <div onClick={() => setActiveTab('statistics')} className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[24px] cursor-pointer hover:border-[#f5a33b] transition-all">
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] text-[13px] font-medium">Bước chân</div>
-                    <div className="text-[30px] font-bold mt-[4px]">7,842</div>
+                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị steps từ ESP32 */}
+                    <div className="text-[30px] font-bold mt-[4px]">{steps > 0 ? steps.toLocaleString() : '--'}</div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#f5a33b] bg-[#fff5e8]">
                     <Footprints className="w-[24px] h-[24px]" />
@@ -251,7 +289,6 @@ export function HealthDashboardPage() {
               </div>
             </div>
 
-            {/* BẢNG SỐ BƯỚC CHÂN (BAR CHART) */}
             <div className="w-full bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px] flex flex-col">
               <div className="mb-[20px]">
                 <div className="font-bold text-[16px]">Hoạt động trong tuần</div>
@@ -260,7 +297,7 @@ export function HealthDashboardPage() {
               
               <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stepsMockData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <BarChart data={getStepsChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#4ade80" stopOpacity={1}/>
@@ -279,10 +316,10 @@ export function HealthDashboardPage() {
           </div>
         )}
 
-        {/* TAB 2: NHỊP TIM (HEART RATE PAGE) */}
+        {/* TAB 2: NHỊP TIM */}
         {activeTab === 'heart' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-[25px]">
+             <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Nhịp tim</h2>
               <p className="text-[#8b96a5] text-[13px] mt-[5px]">Theo dõi dữ liệu nhịp tim trực tiếp từ thiết bị đeo.</p>
             </div>
@@ -290,7 +327,7 @@ export function HealthDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] mb-[20px]">
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
                 <div className="text-[16px] font-bold text-slate-800">Nhịp tim hiện tại</div>
-                <div className="text-[42px] font-bold my-[15px]">{heartRate || '--'} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
                 <span className="text-[#18b77a] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#18b77a] animate-pulse"></span> Trong giới hạn bình thường</span>
                 <div className="w-full bg-slate-100 h-[8px] rounded-full overflow-hidden mt-4">
                   <div className="bg-[#18b77a] h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((heartRate / 150) * 100, 100)}%` }}></div>
@@ -299,14 +336,14 @@ export function HealthDashboardPage() {
 
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
                 <div className="text-[16px] font-bold text-slate-800">Nhịp tim trung bình</div>
-                <div className="text-[42px] font-bold my-[15px]">{avgHr || '--'} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{avgHr > 0 ? avgHr : '--'} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
                 <p className="text-[#8b96a5] text-[13px]">Tính toán dựa trên toàn bộ dữ liệu phiên đo hiện tại.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-[20px]">
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
-                <div className="text-[16px] font-bold mb-4">Biểu đồ biến thiên nhịp tim (Live)</div>
+                <div className="text-[16px] font-bold mb-4 text-slate-900">Biểu đồ nhịp tim</div>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
@@ -320,21 +357,27 @@ export function HealthDashboardPage() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
-                <div className="text-[16px] font-bold mb-4">Thống kê nhanh</div>
+              <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
+                <div className="text-[18px] font-bold mb-6 text-slate-900">Thống kê</div>
                 <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#e8edf2]">
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-3 w-1/2">Chỉ số</th>
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-3 w-1/2">Giá trị</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     <tr className="border-b border-[#e8edf2]">
-                      <td className="py-4 text-[13px] text-[#8b96a5]">Trạng thái thiết bị</td>
-                      <td className="py-4 text-[13px] font-bold text-right">{heartRate > 0 ? "Đang truyền" : "Chờ tín hiệu"}</td>
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Cao nhất</td>
+                      <td className="py-4 text-[14px] text-slate-800">{maxHrDisp} BPM</td>
                     </tr>
                     <tr className="border-b border-[#e8edf2]">
-                      <td className="py-4 text-[13px] text-[#8b96a5]">Mức trung bình</td>
-                      <td className="py-4 text-[13px] font-bold text-right">{avgHr} BPM</td>
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Thấp nhất</td>
+                      <td className="py-4 text-[14px] text-slate-800">{minHrDisp} BPM</td>
                     </tr>
                     <tr>
-                      <td className="py-4 text-[13px] text-[#8b96a5]">Nguồn dữ liệu</td>
-                      <td className="py-4 text-[13px] font-bold text-right">Cảm biến MAX30102</td>
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Trung bình</td>
+                      <td className="py-4 text-[14px] text-slate-800">{avgHr > 0 ? avgHr : '--'} BPM</td>
                     </tr>
                   </tbody>
                 </table>
@@ -343,10 +386,10 @@ export function HealthDashboardPage() {
           </div>
         )}
 
-        {/* TAB 3: CHI TIẾT SpO2 */}
+        {/* TAB 3: SpO2 */}
         {activeTab === 'spo2' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-[25px]">
+             <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Nồng độ Oxy (SpO₂)</h2>
               <p className="text-[#8b96a5] text-[13px] mt-[5px]">Theo dõi độ bão hòa oxy trong máu thời gian thực.</p>
             </div>
@@ -354,7 +397,7 @@ export function HealthDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] mb-[20px]">
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
                 <div className="text-[16px] font-bold text-slate-800">SpO₂ hiện tại</div>
-                <div className="text-[42px] font-bold my-[15px]">{spO2 || '--'} <small className="text-[14px] text-[#8b96a5]">%</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{spO2 > 0 ? spO2 : '--'} <small className="text-[14px] text-[#8b96a5]">%</small></div>
                 <span className="text-[#4385f5] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#4385f5]"></span> Chỉ số an toàn</span>
                 <div className="w-full bg-slate-100 h-[8px] rounded-full overflow-hidden mt-4">
                   <div className="bg-[#4385f5] h-full rounded-full transition-all duration-500" style={{ width: `${spO2}%` }}></div>
@@ -363,43 +406,70 @@ export function HealthDashboardPage() {
 
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
                 <div className="text-[16px] font-bold text-slate-800">SpO₂ trung bình</div>
-                <div className="text-[42px] font-bold my-[15px]">{avgSpo2 || '--'} <small className="text-[14px] text-[#8b96a5]">%</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{avgSpo2 > 0 ? avgSpo2 : '--'} <small className="text-[14px] text-[#8b96a5]">%</small></div>
                 <p className="text-[#8b96a5] text-[13px]">Chỉ số bão hòa oxy lý tưởng dao động từ 95% đến 100%.</p>
               </div>
             </div>
 
-            <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
-              <div className="text-[16px] font-bold mb-4">Biểu đồ biến thiên SpO₂ (Live)</div>
-              <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8edf2" />
-                    <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(20,35,55,.06)' }}/>
-                    <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+            <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-[20px]">
+              <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                <div className="text-[16px] font-bold mb-4 text-slate-900">Biểu đồ SpO₂</div>
+                <div className="h-[250px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8edf2" />
+                      <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(20,35,55,.06)' }}/>
+                      <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[25px]">
+                <div className="text-[18px] font-bold mb-6 text-slate-900">Thống kê</div>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#e8edf2]">
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-3 w-1/2">Chỉ số</th>
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-3 w-1/2">Giá trị</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-[#e8edf2]">
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Cao nhất</td>
+                      <td className="py-4 text-[14px] text-slate-800">{maxSpo2Disp} %</td>
+                    </tr>
+                    <tr className="border-b border-[#e8edf2]">
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Thấp nhất</td>
+                      <td className="py-4 text-[14px] text-slate-800">{minSpo2Disp} %</td>
+                    </tr>
+                    <tr>
+                      <td className="py-4 text-[14px] text-slate-800 font-medium">Trung bình</td>
+                      <td className="py-4 text-[14px] text-slate-800">{avgSpo2 > 0 ? avgSpo2 : '--'} %</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 4: THỐNG KÊ SỨC KHOẺ (STATISTICS PAGE NÂNG CẤP) */}
+        {/* TAB 4: THỐNG KÊ SỨC KHOẺ */}
         {activeTab === 'statistics' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-[25px]">
+             <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Thống kê sức khoẻ</h2>
               <p className="text-[#8b96a5] text-[13px] mt-[5px]">Báo cáo chi tiết và phân tích xu hướng thể chất của bạn.</p>
             </div>
 
-            {/* BẢNG TÓM TẮT THỐNG KÊ MỚI (KHÔNG TRÙNG LẶP) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-[16px] mb-[20px]">
               <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[20px]">
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">Kỷ lục Nhịp tim</div>
-                    <div className="text-[25px] font-bold mt-[10px]">{sessionStats.maxHr > 0 ? sessionStats.maxHr : '--'} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
+                    <div className="text-[25px] font-bold mt-[10px]">{maxHrDisp} <small className="text-[14px] text-[#8b96a5]">BPM</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#ef4444] bg-[#fee2e2]">
                     <TrendingUp className="w-[20px] h-[20px]" />
@@ -411,7 +481,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">SpO₂ Thấp nhất</div>
-                    <div className="text-[25px] font-bold mt-[10px]">{sessionStats.minSpo2 < 100 ? sessionStats.minSpo2 : '--'}<small className="text-[14px] text-[#8b96a5]">%</small></div>
+                    <div className="text-[25px] font-bold mt-[10px]">{minSpo2Disp}<small className="text-[14px] text-[#8b96a5]">%</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#8b5cf6] bg-[#ede9fe]">
                     <TrendingDown className="w-[20px] h-[20px]" />
@@ -423,7 +493,8 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">Tổng Quãng đường</div>
-                    <div className="text-[25px] font-bold mt-[10px]">32.4 <small className="text-[14px] text-[#8b96a5]">km</small></div>
+                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị khoảng cách */}
+                    <div className="text-[25px] font-bold mt-[10px]">{distanceKm} <small className="text-[14px] text-[#8b96a5]">km</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#10b981] bg-[#d1fae5]">
                     <Route className="w-[20px] h-[20px]" />
@@ -435,7 +506,8 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">Calo tiêu hao</div>
-                    <div className="text-[25px] font-bold mt-[10px]">2,450 <small className="text-[14px] text-[#8b96a5]">kcal</small></div>
+                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị Calo */}
+                    <div className="text-[25px] font-bold mt-[10px]">{calories > 0 ? calories.toLocaleString() : '--'} <small className="text-[14px] text-[#8b96a5]">kcal</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#f97316] bg-[#ffedd5]">
                     <Flame className="w-[20px] h-[20px]" />
@@ -474,7 +546,6 @@ export function HealthDashboardPage() {
               </div>
             </div>
 
-            {/* BẢNG PHÂN TÍCH XU HƯỚNG */}
             <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
               <div className="font-bold text-[16px]">Phân tích xu hướng (AI)</div>
               <div className="text-[#8b96a5] text-[12px] mt-[5px] mb-[15px]">Dự báo dựa trên chuỗi dữ liệu 7 ngày qua</div>
@@ -503,11 +574,115 @@ export function HealthDashboardPage() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
+        {/* TAB 5: BÁO CÁO */}
+        {activeTab === 'reports' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="mb-[25px]">
+              <h2 className="text-[24px] font-bold">Báo cáo</h2>
+              <p className="text-[#8b96a5] text-[13px] mt-[5px]">Tổng hợp dữ liệu sức khỏe theo thời gian.</p>
+            </div>
+
+            <div className="w-full bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+              <div className="font-bold text-[16px] mb-[20px]">Báo cáo gần đây</div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-[#e8edf2]">
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-4 px-4 w-1/4">Thời gian</th>
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-4 px-4 w-1/3">Loại báo cáo</th>
+                      <th className="text-left font-normal text-[#8b96a5] text-[13px] pb-4 px-4 w-1/4">Trạng thái</th>
+                      <th className="text-right font-normal text-[#8b96a5] text-[13px] pb-4 px-4"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mockReports.map((report) => (
+                      <tr key={report.id} className="border-b border-[#e8edf2] hover:bg-slate-50 transition-colors">
+                        <td className="py-4 px-4 text-[14px] text-slate-800">{report.date}</td>
+                        <td className="py-4 px-4 text-[14px] text-slate-800">{report.type}</td>
+                        <td className="py-4 px-4">
+                          <span className="bg-[#e9faf3] text-[#18b77a] px-3 py-1 rounded-full text-[12px] font-semibold">
+                            {report.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <button 
+                            onClick={() => setSelectedReport(report)}
+                            className="bg-[#e9faf3] text-[#18b77a] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] transition-colors"
+                          >
+                            Xem
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
       </main>
+
+      {/* POPUP CHI TIẾT BÁO CÁO */}
+      {selectedReport && (
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200">
+            
+            <button 
+              onClick={() => setSelectedReport(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="h-5 w-5 text-[#18b77a]" />
+                <h3 className="text-lg font-bold text-slate-900">{selectedReport.type}</h3>
+              </div>
+              <p className="text-sm text-slate-500">Ngày tổng hợp: {selectedReport.date}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Nhịp tim TB</p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.avgHr} <span className="text-xs font-normal text-slate-500">BPM</span></p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">SpO₂ TB</p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.avgSpo2} <span className="text-xs font-normal text-slate-500">%</span></p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Tổng bước chân</p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.steps.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Tổng Calo</p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.calo.toLocaleString()} <span className="text-xs font-normal text-slate-500">kcal</span></p>
+                </div>
+              </div>
+
+              <div className="bg-[#e9faf3] p-4 rounded-xl border border-[#b5efd9]">
+                <p className="text-sm text-[#0b9665] font-medium leading-relaxed">
+                  <strong>Nhận xét:</strong> Các chỉ số trong {selectedReport.type === "Báo cáo hàng ngày" ? "ngày" : "tuần"} này đều nằm trong mức an toàn. Mức vận động đạt tiêu chuẩn. Hãy tiếp tục duy trì nhé!
+                </p>
+              </div>
+            </div>
+            
+            <button 
+              className="w-full mt-6 bg-[#18b77a] hover:bg-[#149965] text-white py-2.5 rounded-xl font-bold transition-colors" 
+              onClick={() => setSelectedReport(null)}
+            >
+              Đóng báo cáo
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
