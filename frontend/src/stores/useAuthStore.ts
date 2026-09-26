@@ -7,11 +7,14 @@ import { persist } from "zustand/middleware"; // Đã import
 // BƯỚC 1: Thêm () sau create<AuthState> và bọc persist ra ngoài cùng
 export const useAuthStore = create<AuthState>()(
   persist(
+
     (set, get) => ({
       accessToken: null,
       user: null,
       loading: false,
-
+      setUser: (user) => {
+        set({ user });
+      },
       setAccessToken: (accessToken) => {
         set({ accessToken });
       },

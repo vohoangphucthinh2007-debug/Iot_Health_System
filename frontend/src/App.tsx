@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router"; 
 // Các trang
 import HomePage from "@/pages/HomePage";
@@ -6,15 +7,27 @@ import SignUpPage from "@/pages/SignUpPage";
 import HealthDashboardPage from "@/pages/HealthDashboardPage";
 import ProfilePage from "@/pages/ProfilePage"; 
 import SettingsPage from "@/pages/SettingsPage"; 
-import GuidePage from "@/pages/GuidePage"; // <-- IMPORT TRANG HƯỚNG DẪN MỚI
+import GuidePage from "@/pages/GuidePage";
 
 // Layout dùng chung
-import Navbar from "@/components/Navbar"; // <-- IMPORT NAVBAR (sửa đường dẫn nếu ông lưu file Navbar ở chỗ khác)
+import Navbar from "@/components/Navbar";
 
 import { Toaster } from "sonner";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 function App() {
+  const { darkMode } = useSettingsStore();
+
+  // Áp dụng class 'dark' lên <html> toàn cục cho mọi trang
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
   return (
     <>
       <Toaster richColors />

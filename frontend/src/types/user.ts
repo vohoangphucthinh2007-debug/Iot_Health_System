@@ -8,4 +8,9 @@ export interface User {
   phone?: string;
   createdAt?: string;
   updatedAt?: string;
+  dob?: string;
+  gender?: string;
+  height?: number | string;
+  weight?: number | string;
+  healthGoal?: string;
 }

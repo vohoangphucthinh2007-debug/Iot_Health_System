@@ -1,169 +1,257 @@
-import { useState, useEffect } from "react";
-import { User, Mail, Phone, MapPin, Calendar, Camera, Edit, ArrowLeft, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { toast } from "sonner";
-import { authService } from "@/services/authService"; // Import service gọi API
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router"; // hoặc react-router-dom tuỳ phiên bản bạn dùng
+import { 
+  User, Calendar, Mail, Phone, Ruler, Scale, 
+  ArrowLeft, Camera, Loader2 
+} from "lucide-react";
+import { useAuthStore } from "@/stores/useAuthStore"; // Import store lấy thông tin User
 
 export default function ProfilePage() {
-  const { user, fetchMe } = useAuthStore();
-  
-  // Trạng thái bật/tắt chế độ chỉnh sửa
-  const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { user, setUser } = useAuthStore();
 
-  // Lưu trữ dữ liệu đang nhập
-  const [formData, setFormData] = useState({
-    displayName: "",
-    phone: "",
-    dateOfBirth: "",
-    address: ""
+  // Khởi tạo state dựa trên dữ liệu user hiện tại
+  const [profileData, setProfileData] = useState({
+    displayName: user?.displayName || "",
+    dob: user?.dob || "",
+    gender: user?.gender || "Chưa chọn",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    height: user?.height || "",
+    weight: user?.weight || "",
+    healthGoal: user?.healthGoal || "Duy trì sức khỏe"
   });
 
-  // Đồng bộ dữ liệu từ store vào form khi load trang
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Cập nhật lại form nếu user data load chậm
   useEffect(() => {
     if (user) {
-      setFormData({
+      setProfileData({
         displayName: user.displayName || "",
+        dob: user.dob || "",
+        gender: user.gender || "Chưa chọn",
+        email: user.email || "",
         phone: user.phone || "",
-        // Xử lý định dạng ngày tháng chuẩn yyyy-mm-dd cho thẻ <input type="date">
-        dateOfBirth: (user as any)?.dateOfBirth ? new Date((user as any).dateOfBirth).toISOString().split('T')[0] : "",
-        address: (user as any)?.address || ""
+        height: user.height || "",
+        weight: user.weight || "",
+        healthGoal: user.healthGoal || "Duy trì sức khỏe"
       });
     }
   }, [user]);
 
-  // Hàm xử lý khi gõ vào ô input
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Xử lý khi gõ vào input
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Hàm gửi dữ liệu lên Backend
-  const handleUpdate = async () => {
+  // Hàm Lưu thay đổi gọi API
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
     try {
-      setLoading(true);
-      // Gọi API cập nhật
-      await authService.updateProfile(formData);
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+      const res = await axios.put(`${apiUrl}/users/profile`, profileData, {
+        withCredentials: true // Quan trọng để gửi token cookie
+      });
       
-      toast.success("Cập nhật thông tin thành công!");
-      setIsEditing(false); // Tắt chế độ sửa
-      
-      // Cập nhật lại thông tin mới nhất vào Zustand Store
-      await fetchMe(); 
+      // Cập nhật lại kho dữ liệu global
+      setUser(res.data);
+      alert("Cập nhật hồ sơ thành công!");
     } catch (error) {
-      console.error(error);
-      toast.error("Lỗi khi cập nhật thông tin!");
+      console.error("Lỗi khi lưu hồ sơ:", error);
+      alert("Lỗi khi lưu hồ sơ. Vui lòng kiểm tra lại kết nối.");
     } finally {
-      setLoading(false);
+      setIsSavingProfile(false);
     }
   };
 
   return (
-    // Đổi p-6 thành p-4 trên mobile để tiết kiệm diện tích màn hình
-    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
-        <Link to="/" className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors">
-          <ArrowLeft className="h-4 w-4 mr-1" /> Quay lại trang chủ
-        </Link>
+    <div className="min-h-screen bg-[#f5f7fb] dark:bg-[#0f172a] text-[#17212b] dark:text-white font-sans p-[20px] md:p-[40px] transition-colors duration-300">
+      <div className="max-w-3xl mx-auto">
+        
+        {/* Nút quay lại & Tiêu đề */}
+        <div className="flex items-center gap-4 mb-[30px]">
+          <button 
+            onClick={() => navigate(-1)}
+            className="p-2.5 bg-white dark:bg-[#1e293b] shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors border border-[#e8edf2] dark:border-[#334155]"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+          </button>
+          <div>
+            <h1 className="text-[24px] md:text-[28px] font-bold">Hồ sơ cá nhân</h1>
+            <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[2px]">Quản lý thông tin và dữ liệu sức khỏe của bạn.</p>
+          </div>
+        </div>
 
-        {/* Chữ nhỏ lại xíu trên mobile (text-2xl) */}
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Hồ sơ cá nhân</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {/* CỘT TRÁI: AVATAR */}
-          <div className="col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col items-center text-center">
-            <div className="relative mb-4 group cursor-pointer">
-              <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 border-4 border-white shadow-sm overflow-hidden">
-                <User className="h-12 w-12" />
-              </div>
-              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="h-6 w-6 text-white" />
-              </div>
+        {/* Khung nội dung chính */}
+        <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[30px] md:p-[40px] transition-colors duration-300">
+          
+          {/* Avatar Section */}
+          <div className="flex flex-col items-center mb-10">
+            <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#18b77a]/30 dark:to-[#18b77a]/10 text-[#0b9665] dark:text-[#18b77a] rounded-full flex items-center justify-center text-4xl font-bold mb-4 shadow-sm border border-[#a3e4c8] dark:border-[#18b77a]/30">
+              {profileData.displayName ? profileData.displayName.charAt(0).toUpperCase() : 'U'}
             </div>
-            <h2 className="text-xl font-bold text-slate-900">{user?.displayName || "Chưa cập nhật"}</h2>
-            <p className="text-sm text-slate-500 mb-4">{user?.email}</p>
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 border border-emerald-200">
-              Tài khoản đang hoạt động
-            </span>
+            <button className="text-[#18b77a] font-semibold text-[14px] flex items-center gap-1.5 hover:text-[#149965] transition-colors">
+              <Camera className="w-4 h-4" /> Thay đổi ảnh đại diện
+            </button>
           </div>
 
-          {/* CỘT PHẢI: FORM THÔNG TIN */}
-          <div className="col-span-1 md:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-slate-900">Thông tin chi tiết</h3>
-              
-              {/* Nút bật/tắt chế độ sửa */}
-              {!isEditing ? (
-                <Button variant="outline" size="sm" className="gap-2 text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => setIsEditing(true)}>
-                  <Edit className="h-4 w-4" /> Chỉnh sửa
-                </Button>
-              ) : (
-                <Button variant="ghost" size="sm" className="gap-2 text-slate-500 hover:bg-slate-100" onClick={() => setIsEditing(false)}>
-                  <X className="h-4 w-4" /> Hủy
-                </Button>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-500 flex items-center gap-2"><User className="h-4 w-4"/> Họ và tên</label>
-                  <input 
-                    type="text" name="displayName" 
-                    disabled={!isEditing} 
-                    value={formData.displayName} onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg outline-none ${isEditing ? "bg-white border-blue-400 focus:ring-2 focus:ring-blue-500 text-slate-900" : "bg-slate-50 border-slate-200 text-slate-600"}`} 
-                  />
+          {/* Form Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            
+            {/* Họ và tên */}
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Họ và tên</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <User className="h-[18px] w-[18px]" />
                 </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-500 flex items-center gap-2"><Mail className="h-4 w-4"/> Email liên hệ</label>
-                  <input type="email" disabled className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-400" value={user?.email || ""} />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-500 flex items-center gap-2"><Phone className="h-4 w-4"/> Số điện thoại</label>
-                  <input 
-                    type="text" name="phone" placeholder="Chưa cập nhật"
-                    disabled={!isEditing} 
-                    value={formData.phone} onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg outline-none ${isEditing ? "bg-white border-blue-400 focus:ring-2 focus:ring-blue-500 text-slate-900" : "bg-slate-50 border-slate-200 text-slate-600"}`} 
-                  />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-500 flex items-center gap-2"><Calendar className="h-4 w-4"/> Ngày sinh</label>
-                  <input 
-                    type="date" name="dateOfBirth"
-                    disabled={!isEditing} 
-                    value={formData.dateOfBirth} onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg outline-none ${isEditing ? "bg-white border-blue-400 focus:ring-2 focus:ring-blue-500 text-slate-900" : "bg-slate-50 border-slate-200 text-slate-600"}`} 
-                  />
-                </div>
-                
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-sm font-medium text-slate-500 flex items-center gap-2"><MapPin className="h-4 w-4"/> Địa chỉ liên hệ</label>
-                  <input 
-                    type="text" name="address" placeholder="Ví dụ: KTX ĐH SPKT, TP.HCM"
-                    disabled={!isEditing} 
-                    value={formData.address} onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg outline-none ${isEditing ? "bg-white border-blue-400 focus:ring-2 focus:ring-blue-500 text-slate-900" : "bg-slate-50 border-slate-200 text-slate-600"}`} 
-                  />
-                </div>
+                <input 
+                  type="text" 
+                  name="displayName"
+                  value={profileData.displayName}
+                  onChange={handleProfileChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  placeholder="Nguyễn An"
+                />
               </div>
-              
-              {/* Ép w-full cho mobile, lên máy tính rụt lại w-auto */}
-              {isEditing && (
-                <div className="pt-4 flex justify-end">
-                  <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700" onClick={handleUpdate} disabled={loading}>
-                    {loading ? "Đang lưu..." : "Lưu thay đổi"}
-                  </Button>
-                </div>
-              )}
-
             </div>
+
+            {/* Ngày sinh */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Ngày sinh</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <Calendar className="h-[18px] w-[18px]" />
+                </div>
+                <input 
+                  type="date" 
+                  name="dob"
+                  value={profileData.dob}
+                  onChange={handleProfileChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] [color-scheme:light] dark:[color-scheme:dark]" 
+                />
+              </div>
+            </div>
+
+            {/* Giới tính */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Giới tính</label>
+              <select 
+                name="gender"
+                value={profileData.gender}
+                onChange={handleProfileChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
+              >
+                <option value="Chưa chọn">Chưa chọn</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <Mail className="h-[18px] w-[18px]" />
+                </div>
+                <input 
+                  type="email" 
+                  name="email"
+                  value={profileData.email}
+                  disabled
+                  className="w-full pl-11 pr-4 py-3 border border-[#e8edf2] dark:border-[#334155] rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed text-[14px]" 
+                  placeholder="nguyenan@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Số điện thoại */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Số điện thoại</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <Phone className="h-[18px] w-[18px]" />
+                </div>
+                <input 
+                  type="tel" 
+                  name="phone"
+                  value={profileData.phone}
+                  onChange={handleProfileChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  placeholder="0901234567"
+                />
+              </div>
+            </div>
+
+            {/* Chiều cao */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Chiều cao (cm)</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <Ruler className="h-[18px] w-[18px]" />
+                </div>
+                <input 
+                  type="number" 
+                  name="height"
+                  value={profileData.height}
+                  onChange={handleProfileChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  placeholder="170"
+                />
+              </div>
+            </div>
+
+            {/* Cân nặng */}
+            <div>
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Cân nặng (kg)</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                  <Scale className="h-[18px] w-[18px]" />
+                </div>
+                <input 
+                  type="number" 
+                  name="weight"
+                  value={profileData.weight}
+                  onChange={handleProfileChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  placeholder="65"
+                />
+              </div>
+            </div>
+
+            {/* Mục tiêu sức khỏe */}
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-2">Mục tiêu sức khỏe</label>
+              <select 
+                name="healthGoal"
+                value={profileData.healthGoal}
+                onChange={handleProfileChange}
+                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
+              >
+                <option value="Duy trì sức khỏe">Duy trì sức khỏe</option>
+                <option value="Giảm cân">Giảm cân</option>
+                <option value="Tăng cơ">Tăng cơ</option>
+                <option value="Cải thiện tim mạch">Cải thiện tim mạch</option>
+              </select>
+            </div>
+
+          </div>
+
+          {/* Nút lưu */}
+          <div className="mt-10 flex justify-end">
+            <button 
+              onClick={handleSaveProfile}
+              disabled={isSavingProfile}
+              className="bg-[#18b77a] hover:bg-[#149965] text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2 text-[15px] shadow-[0_4px_15px_rgba(24,183,122,0.3)] hover:shadow-[0_6px_20px_rgba(24,183,122,0.4)]"
+            >
+              {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              Lưu thay đổi
+            </button>
           </div>
         </div>
       </div>
