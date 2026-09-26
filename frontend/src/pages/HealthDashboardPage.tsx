@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
+import axios from "axios";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, 
   BarChart, Bar 
 } from 'recharts';
 import { 
   Home, HeartPulse, Wind, BarChart3, Settings, 
-  TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X
+  TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
+  User, Shield, Bell, Droplet, Database, Download, Moon, Languages, Cloud, Info, ChevronRight
 } from "lucide-react";
 
-// Dữ liệu mẫu
 const dailyMockData = [
   { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
   { time: "T4", hr: 71, spo2: 99 }, { time: "T5", hr: 78, spo2: 96 },
@@ -26,17 +27,18 @@ const stepsMockData = [
   { day: "T2", steps: 4200 }, { day: "T3", steps: 6500 },
   { day: "T4", steps: 8100 }, { day: "T5", steps: 5200 },
   { day: "T6", steps: 9400 }, { day: "T7", steps: 7200 },
-  { day: "Hôm nay", steps: 0 }, // Sẽ tự động thay bằng số thật
+  { day: "Hôm nay", steps: 0 },
 ];
 
-const mockReports = [
-  { id: 1, date: "25/09/2026", type: "Báo cáo hàng ngày", status: "Hoàn thành", avgHr: 76, avgSpo2: 98, steps: 8200, calo: 2450 },
-  { id: 2, date: "22/09/2026", type: "Báo cáo hàng tuần", status: "Hoàn thành", avgHr: 74, avgSpo2: 97, steps: 54000, calo: 16500 },
-  { id: 3, date: "15/09/2026", type: "Báo cáo hàng tuần", status: "Hoàn thành", avgHr: 75, avgSpo2: 98, steps: 52100, calo: 15800 },
-];
+// Nút gạt đã được nâng cấp để nhận sự kiện onClick
+const ToggleSwitch = ({ active, onClick }: { active: boolean; onClick?: () => void }) => (
+  <div onClick={onClick} className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${active ? 'bg-[#18b77a]' : 'bg-[#e2e8f0]'}`}>
+    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${active ? 'translate-x-5' : 'translate-x-0'}`}></div>
+  </div>
+);
 
 export function HealthDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings'>('dashboard');
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -46,22 +48,43 @@ export function HealthDashboardPage() {
   const [viewMode, setViewMode] = useState<'live' | 'daily' | 'monthly'>('live');
   
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [isLoadingReports, setIsLoadingReports] = useState(false);
+
+  // STATE QUẢN LÝ CÀI ĐẶT
+  const [appSettings, setAppSettings] = useState({
+    heartRateTracking: true,
+    spo2Tracking: true,
+    darkMode: false,
+    healthAlerts: true,
+    waterReminder: true,
+    dataAnalysis: true,
+    autoBackup: true
+  });
 
   const [sessionStats, setSessionStats] = useState({ 
     sumHr: 0, sumSpo2: 0, count: 0, 
     maxHr: 0, minHr: 999, 
     maxSpo2: 0, minSpo2: 100 
   });
-  
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
+  // Lắng nghe Dark Mode
+  useEffect(() => {
+    if (appSettings.darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [appSettings.darkMode]);
+
+  // Lắng nghe WebSockets
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
     const socketUrl = apiUrl.replace('/api', '');
     const socket = io(socketUrl); 
 
     socket.on("connect", () => setIsConnected(true));
-
     socket.on("disconnect", () => {
       setIsConnected(false);
       setHeartRate(0); 
@@ -71,7 +94,6 @@ export function HealthDashboardPage() {
     socket.on("sensorData", (data) => {
       setHeartRate(data.heartRate || 0);
       setSpO2(data.spO2 || 0);
-      // Gán dữ liệu bước chân và calo vào State
       if (data.steps !== undefined) setSteps(data.steps);
       if (data.calories !== undefined) setCalories(data.calories);
 
@@ -103,14 +125,34 @@ export function HealthDashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      const fetchReports = async () => {
+        setIsLoadingReports(true);
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+          const res = await axios.get(`${apiUrl}/users/reports`, { withCredentials: true });
+          setReports(res.data);
+        } catch (error) {
+          console.error("Lỗi lấy báo cáo từ server:", error);
+        } finally {
+          setIsLoadingReports(false);
+        }
+      };
+      fetchReports();
+    }
+  }, [activeTab]);
+
+  const toggleSetting = (key: keyof typeof appSettings) => {
+    setAppSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const avgHr = sessionStats.count > 0 ? Math.round(sessionStats.sumHr / sessionStats.count) : 0;
   const avgSpo2 = sessionStats.count > 0 ? Math.round(sessionStats.sumSpo2 / sessionStats.count) : 0;
   const maxHrDisp = sessionStats.count === 0 ? '--' : sessionStats.maxHr;
   const minHrDisp = sessionStats.count === 0 ? '--' : sessionStats.minHr;
   const maxSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.maxSpo2;
   const minSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.minSpo2;
-  
-  // Tính tổng quãng đường từ số bước (1 bước ~ 0.7 mét)
   const distanceKm = steps > 0 ? (steps * 0.0007).toFixed(2) : '--';
 
   const getChartData = () => {
@@ -172,7 +214,7 @@ export function HealthDashboardPage() {
         <button className="w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7] text-[14px] font-semibold transition-all cursor-pointer">
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
-        <button className="w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7] text-[14px] font-semibold transition-all cursor-pointer">
+        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b] hover:text-[#18b77a] hover:bg-[#f3faf7]'}`}>
           <Settings className="w-[18px] h-[18px]" /><span>Cài đặt</span>
         </button>
       </aside>
@@ -182,7 +224,7 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><Home className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><Wind className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><FileText className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('settings')} className={`p-[10px] rounded-[11px] ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3]' : 'text-[#707b8b]'}`}><Settings className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -279,7 +321,6 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] text-[13px] font-medium">Bước chân</div>
-                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị steps từ ESP32 */}
                     <div className="text-[30px] font-bold mt-[4px]">{steps > 0 ? steps.toLocaleString() : '--'}</div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#f5a33b] bg-[#fff5e8]">
@@ -493,7 +534,6 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">Tổng Quãng đường</div>
-                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị khoảng cách */}
                     <div className="text-[25px] font-bold mt-[10px]">{distanceKm} <small className="text-[14px] text-[#8b96a5]">km</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#10b981] bg-[#d1fae5]">
@@ -506,7 +546,6 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between">
                   <div>
                     <div className="text-[#8b96a5] text-[12px] mt-[3px]">Calo tiêu hao</div>
-                    {/* THAY ĐỔI Ở ĐÂY: Hiển thị Calo */}
                     <div className="text-[25px] font-bold mt-[10px]">{calories > 0 ? calories.toLocaleString() : '--'} <small className="text-[14px] text-[#8b96a5]">kcal</small></div>
                   </div>
                   <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#f97316] bg-[#ffedd5]">
@@ -599,27 +638,244 @@ export function HealthDashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockReports.map((report) => (
-                      <tr key={report.id} className="border-b border-[#e8edf2] hover:bg-slate-50 transition-colors">
-                        <td className="py-4 px-4 text-[14px] text-slate-800">{report.date}</td>
-                        <td className="py-4 px-4 text-[14px] text-slate-800">{report.type}</td>
-                        <td className="py-4 px-4">
-                          <span className="bg-[#e9faf3] text-[#18b77a] px-3 py-1 rounded-full text-[12px] font-semibold">
-                            {report.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          <button 
-                            onClick={() => setSelectedReport(report)}
-                            className="bg-[#e9faf3] text-[#18b77a] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] transition-colors"
-                          >
-                            Xem
-                          </button>
+                    {isLoadingReports ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-8 text-slate-500 text-[14px]">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#18b77a]" />
+                          Đang tải dữ liệu báo cáo...
                         </td>
                       </tr>
-                    ))}
+                    ) : reports.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center py-8 text-slate-500 text-[14px]">
+                          Chưa có báo cáo nào. Báo cáo đầu tiên sẽ được hệ thống tổng hợp vào lúc 23:59 đêm nay.
+                        </td>
+                      </tr>
+                    ) : (
+                      reports.map((report) => (
+                        <tr key={report.id} className="border-b border-[#e8edf2] hover:bg-slate-50 transition-colors">
+                          <td className="py-4 px-4 text-[14px] text-slate-800">{report.date}</td>
+                          <td className="py-4 px-4 text-[14px] text-slate-800">{report.type}</td>
+                          <td className="py-4 px-4">
+                            <span className="bg-[#e9faf3] text-[#18b77a] px-3 py-1 rounded-full text-[12px] font-semibold">
+                              {report.status}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            <button 
+                              onClick={() => setSelectedReport(report)}
+                              className="bg-[#e9faf3] text-[#18b77a] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] transition-colors"
+                            >
+                              Xem
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: CÀI ĐẶT */}
+        {activeTab === 'settings' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="mb-[25px]">
+              <h2 className="text-[24px] font-bold">Cài đặt</h2>
+              <p className="text-[#8b96a5] text-[13px] mt-[5px]">Tùy chỉnh hệ thống PulseCare.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
+              {/* Cột Trái */}
+              <div className="space-y-[20px]">
+                {/* Tài khoản */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <User className="w-[18px] h-[18px]" /> Tài khoản
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] cursor-pointer hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><User className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Hồ sơ cá nhân</div>
+                        <div className="text-[12px] text-[#8b96a5]">Nguyễn An</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="text-slate-400 w-5 h-5" />
+                  </div>
+                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Shield className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Bảo mật</div>
+                        <div className="text-[12px] text-[#8b96a5]">Mật khẩu, xác thực và phiên đăng nhập</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="text-slate-400 w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Theo dõi sức khỏe */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <HeartPulse className="w-[18px] h-[18px]" /> Theo dõi sức khỏe
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><HeartPulse className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Nhịp tim</div>
+                        <div className="text-[12px] text-[#8b96a5]">Theo dõi liên tục</div>
+                      </div>
+                    </div>
+                    {/* GẮN SỰ KIỆN CLICK CHO NÚT GẠT */}
+                    <ToggleSwitch 
+                      active={appSettings.heartRateTracking} 
+                      onClick={() => toggleSetting('heartRateTracking')} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Wind className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">SpO₂</div>
+                        <div className="text-[12px] text-[#8b96a5]">Theo dõi oxy máu</div>
+                      </div>
+                    </div>
+                    <ToggleSwitch 
+                      active={appSettings.spo2Tracking} 
+                      onClick={() => toggleSetting('spo2Tracking')} 
+                    />
+                  </div>
+                </div>
+
+                {/* Giao diện */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <Settings className="w-[18px] h-[18px]" /> Giao diện
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Moon className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Chế độ tối</div>
+                        <div className="text-[12px] text-[#8b96a5]">Dark Mode</div>
+                      </div>
+                    </div>
+                    {/* NÚT GẠT DARK MODE */}
+                    <ToggleSwitch 
+                      active={appSettings.darkMode} 
+                      onClick={() => toggleSetting('darkMode')} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Languages className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Ngôn ngữ</div>
+                        <div className="text-[12px] text-[#8b96a5]">Tiếng Việt</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="text-slate-400 w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cột Phải */}
+              <div className="space-y-[20px]">
+                {/* Thông báo */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <Bell className="w-[18px] h-[18px]" /> Thông báo
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Bell className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Cảnh báo sức khỏe</div>
+                        <div className="text-[12px] text-[#8b96a5]">Thông báo dữ liệu bất thường</div>
+                      </div>
+                    </div>
+                    <ToggleSwitch 
+                      active={appSettings.healthAlerts} 
+                      onClick={() => toggleSetting('healthAlerts')} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Droplet className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Nhắc uống nước</div>
+                        <div className="text-[12px] text-[#8b96a5]">Nhắc theo mục tiêu</div>
+                      </div>
+                    </div>
+                    <ToggleSwitch 
+                      active={appSettings.waterReminder} 
+                      onClick={() => toggleSetting('waterReminder')} 
+                    />
+                  </div>
+                </div>
+
+                {/* Quyền riêng tư */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <Shield className="w-[18px] h-[18px]" /> Quyền riêng tư
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Database className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Phân tích dữ liệu</div>
+                        <div className="text-[12px] text-[#8b96a5]">Cho phép phân tích tự động</div>
+                      </div>
+                    </div>
+                    <ToggleSwitch 
+                      active={appSettings.dataAnalysis} 
+                      onClick={() => toggleSetting('dataAnalysis')} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Download className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Tải dữ liệu</div>
+                        <div className="text-[12px] text-[#8b96a5]">Xuất dữ liệu cá nhân</div>
+                      </div>
+                    </div>
+                    <ChevronRight className="text-slate-400 w-5 h-5" />
+                  </div>
+                </div>
+
+                {/* Hệ thống */}
+                <div className="bg-white border border-[#e8edf2] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] p-[23px]">
+                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900">
+                    <Cpu className="w-[18px] h-[18px]" /> Hệ thống
+                  </h3>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2]">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Cloud className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Sao lưu</div>
+                        <div className="text-[12px] text-[#8b96a5]">Tự động sao lưu dữ liệu</div>
+                      </div>
+                    </div>
+                    <ToggleSwitch 
+                      active={appSettings.autoBackup} 
+                      onClick={() => toggleSetting('autoBackup')} 
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 p-2 rounded-lg text-slate-500"><Info className="w-[18px] h-[18px]" /></div>
+                      <div>
+                        <div className="text-[14px] font-bold text-slate-800">Phiên bản</div>
+                        <div className="text-[12px] text-[#8b96a5]">PulseCare v1.0.0</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -659,11 +915,11 @@ export function HealthDashboardPage() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Tổng bước chân</p>
-                  <p className="text-lg font-bold text-slate-900">{selectedReport.steps.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.steps?.toLocaleString() || 0}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Tổng Calo</p>
-                  <p className="text-lg font-bold text-slate-900">{selectedReport.calo.toLocaleString()} <span className="text-xs font-normal text-slate-500">kcal</span></p>
+                  <p className="text-lg font-bold text-slate-900">{selectedReport.calo?.toLocaleString() || 0} <span className="text-xs font-normal text-slate-500">kcal</span></p>
                 </div>
               </div>
 
