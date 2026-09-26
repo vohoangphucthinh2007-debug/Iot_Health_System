@@ -2,15 +2,6 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    phone: 
-    { type: String, default: "" },
-
-  dateOfBirth: 
-  { type: Date },
-
-  address: 
-  { type: String, default: "" },
-
     username: {
       type: String,
       required: true,
@@ -35,18 +26,48 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     avatarUrl: {
-      type: String, // link CDN để hiển thị hình
+      type: String,
     },
     avatarId: {
-      type: String, // Cloudinary public_id để xoá hình
+      type: String,
     },
     bio: {
       type: String,
-      maxlength: 500, // tuỳ
+      maxlength: 500,
     },
     phone: {
       type: String,
-      sparse: true, // cho phép null, nhưng không được trùng
+      default: "",
+    },
+    dob: {
+      type: String, // Lưu dạng ISO string (YYYY-MM-DD)
+      default: "",
+    },
+    gender: {
+      type: String,
+      enum: ["Nam", "Nữ", "Khác", "Chưa chọn", ""],
+      default: "Chưa chọn",
+    },
+    height: {
+      type: Number,
+      default: null,
+    },
+    weight: {
+      type: Number,
+      default: null,
+    },
+    healthGoal: {
+      type: String,
+      default: "Duy trì sức khỏe",
+    },
+    // Cài đặt ứng dụng
+    settings: {
+      heartRateTracking: { type: Boolean, default: true },
+      spo2Tracking:      { type: Boolean, default: true },
+      healthAlerts:      { type: Boolean, default: true },
+      waterReminder:     { type: Boolean, default: true },
+      dataAnalysis:      { type: Boolean, default: true },
+      autoBackup:        { type: Boolean, default: true },
     },
   },
   {

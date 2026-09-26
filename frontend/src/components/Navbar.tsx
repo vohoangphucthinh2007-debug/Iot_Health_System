@@ -95,8 +95,8 @@ export default function Navbar() {
                         <Link to="/profile" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
                           <User className="h-4 w-4" /> Thông tin cá nhân
                         </Link>
-                        <Link to="/settings" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
-                          <Settings className="h-4 w-4" /> Cài đặt & Cảnh báo
+                        <Link to="/dashboard?tab=security" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+                          <Settings className="h-4 w-4" /> Bảo mật & Cài đặt
                         </Link>
                       </div>
                       <div className="border-t border-slate-100 py-1">

@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router"; // hoặc react-router-dom tuỳ phiên bản bạn dùng
+import { useNavigate } from "react-router";
 import { 
   User, Calendar, Mail, Phone, Ruler, Scale, 
   ArrowLeft, Camera, Loader2 
 } from "lucide-react";
-import { useAuthStore } from "@/stores/useAuthStore"; // Import store lấy thông tin User
+import { useAuthStore } from "@/stores/useAuthStore";
+import api from "@/lib/axios";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, setUser } = useAuthStore();
+  const { user, fetchMe } = useAuthStore();
 
   // Khởi tạo state dựa trên dữ liệu user hiện tại
   const [profileData, setProfileData] = useState({
@@ -51,17 +52,13 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-      const res = await axios.put(`${apiUrl}/users/profile`, profileData, {
-        withCredentials: true // Quan trọng để gửi token cookie
-      });
-      
-      // Cập nhật lại kho dữ liệu global
-      setUser(res.data);
-      alert("Cập nhật hồ sơ thành công!");
+      await api.put("users/profile", profileData);
+      // Reload user từ server để cập nhật đúng dữ liệu
+      await fetchMe();
+      toast.success("Cập nhật hồ sơ thành công!");
     } catch (error) {
       console.error("Lỗi khi lưu hồ sơ:", error);
-      alert("Lỗi khi lưu hồ sơ. Vui lòng kiểm tra lại kết nối.");
+      toast.error("Lỗi khi lưu hồ sơ. Vui lòng kiểm tra lại kết nối.");
     } finally {
       setIsSavingProfile(false);
     }

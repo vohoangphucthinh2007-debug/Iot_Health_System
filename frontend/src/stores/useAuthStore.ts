@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { toast } from "sonner";
 import { authService } from "@/services/authService";
 import type { AuthState } from "@/types/store";
-import { persist } from "zustand/middleware"; // Đã import
+import { persist } from "zustand/middleware";
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 // BƯỚC 1: Thêm () sau create<AuthState> và bọc persist ra ngoài cùng
 export const useAuthStore = create<AuthState>()(
@@ -71,8 +72,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           set({ loading: true });
           const user = await authService.fetchMe();
-
           set({ user });
+          // Đồng bộ settings từ DB về store
+          if (user?.settings) {
+            useSettingsStore.getState().syncSettingsFromUser(user.settings);
+          }
         } catch (error) {
           console.error(error);
           set({ user: null, accessToken: null });

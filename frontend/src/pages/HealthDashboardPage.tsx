@@ -1,25 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { io } from "socket.io-client";
 import axios from "axios";
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, 
-  BarChart, Bar 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar
 } from 'recharts';
-import { 
-  Home, HeartPulse, Wind, BarChart3, Settings, 
+import {
+  Home, HeartPulse, Wind, BarChart3, Settings,
   TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
   User, Shield, Bell, Droplet, Database, Download, Moon, Languages, Cloud, Info, ChevronRight,
-  Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2
+  Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Lock, Eye, EyeOff
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
 import { useAuthStore } from "@/stores/useAuthStore";
-import { useSettingsStore } from "@/stores/useSettingsStore"; 
+import { useSettingsStore } from "@/stores/useSettingsStore";
 
 const dailyMockData = [
   { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
   { time: "T4", hr: 71, spo2: 99 }, { time: "T5", hr: 78, spo2: 96 },
-  { time: "T6", hr: 74, spo2: 98 }, { time: "T7", hr: 80, spo2: 97 }, 
+  { time: "T6", hr: 74, spo2: 98 }, { time: "T7", hr: 80, spo2: 97 },
   { time: "Hôm nay", hr: 0, spo2: 0 },
 ];
 
@@ -42,12 +42,112 @@ const ToggleSwitch = ({ active, onClick }: { active: boolean; onClick?: () => vo
   </div>
 );
 
+// Icon đăng xuất nhỏ dùng trong vùng nguy hiểm
+const LogOutIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
+  </svg>
+);
+
+// Form đổi mật khẩu — component riêng có state nội bộ
+import api from "@/lib/axios";
+import { toast } from "sonner";
+const SecurityPasswordForm = () => {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      return;
+    }
+    if (form.newPassword !== form.confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp!");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await api.put("users/change-password", {
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      });
+      toast.success("Đổi mật khẩu thành công!");
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Đổi mật khẩu thất bại!";
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const inputCls = "w-full pl-4 pr-11 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm";
+  const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Mật khẩu hiện tại */}
+      <div>
+        <label className={labelCls}>Mật khẩu hiện tại</label>
+        <div className="relative">
+          <input type={showCurrent ? "text" : "password"} name="currentPassword" value={form.currentPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập mật khẩu hiện tại" />
+          <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mật khẩu mới */}
+      <div>
+        <label className={labelCls}>Mật khẩu mới</label>
+        <div className="relative">
+          <input type={showNew ? "text" : "password"} name="newPassword" value={form.newPassword} onChange={handleChange} required minLength={6} className={inputCls} placeholder="Ít nhất 6 ký tự" />
+          <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Xác nhận mật khẩu */}
+      <div>
+        <label className={labelCls}>Xác nhận mật khẩu mới</label>
+        <div className="relative">
+          <input type={showConfirm ? "text" : "password"} name="confirmPassword" value={form.confirmPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập lại mật khẩu mới" />
+          <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        {form.confirmPassword && form.newPassword !== form.confirmPassword && (
+          <p className="text-red-500 text-xs mt-1">Mật khẩu không khớp!</p>
+        )}
+      </div>
+
+      <button type="submit" disabled={isLoading} className="mt-2 bg-[#18b77a] hover:bg-[#149965] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 text-sm shadow-[0_4px_15px_rgba(24,183,122,0.3)]">
+        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+        {isLoading ? 'Đang lưu...' : 'Cập nhật mật khẩu'}
+      </button>
+    </form>
+  );
+};
+
 export function HealthDashboardPage() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
 
+  // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as any) || 'dashboard';
+
   // Bao gồm tất cả các tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings' | 'security' | 'profile'>(initialTab);
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -55,7 +155,7 @@ export function HealthDashboardPage() {
   const [calories, setCalories] = useState<number>(0);
   const [liveData, setLiveData] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'live' | 'daily' | 'monthly'>('live');
-  
+
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
@@ -77,10 +177,10 @@ export function HealthDashboardPage() {
   const appSettings = useSettingsStore();
   const { toggleSetting: toggleStoreSetting } = useSettingsStore();
 
-  const [sessionStats, setSessionStats] = useState({ 
-    sumHr: 0, sumSpo2: 0, count: 0, 
-    maxHr: 0, minHr: 999, 
-    maxSpo2: 0, minSpo2: 100 
+  const [sessionStats, setSessionStats] = useState({
+    sumHr: 0, sumSpo2: 0, count: 0,
+    maxHr: 0, minHr: 999,
+    maxSpo2: 0, minSpo2: 100
   });
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
@@ -104,12 +204,12 @@ export function HealthDashboardPage() {
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
     const socketUrl = apiUrl.replace('/api', '');
-    const socket = io(socketUrl); 
+    const socket = io(socketUrl);
 
     socket.on("connect", () => setIsConnected(true));
     socket.on("disconnect", () => {
       setIsConnected(false);
-      setHeartRate(0); 
+      setHeartRate(0);
       setSpO2(0);
     });
 
@@ -231,11 +331,11 @@ export function HealthDashboardPage() {
 
   return (
     <div className="flex flex-col md:flex-row bg-[#f5f7fb] dark:bg-[#0f172a] text-[#17212b] dark:text-white font-sans w-full min-h-[calc(100vh-65px)] transition-colors duration-300">
-      
+
       {/* ================= SIDEBAR ================= */}
       <aside className="hidden md:block w-[245px] shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto bg-white dark:bg-[#1e293b] border-r border-[#e8edf2] dark:border-[#334155] py-[25px] px-[15px] z-10 transition-colors duration-300">
         <div className="text-[10px] font-bold text-[#a2aab5] dark:text-slate-400 tracking-[1px] px-[13px] mb-[9px] uppercase">Theo dõi</div>
-        
+
         <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
           <Home className="w-[18px] h-[18px]" /><span>Tổng quan</span>
         </button>
@@ -247,7 +347,7 @@ export function HealthDashboardPage() {
         </button>
 
         <div className="text-[10px] font-bold text-[#a2aab5] dark:text-slate-400 tracking-[1px] px-[13px] m-[22px_0_9px] uppercase mt-4">Hệ thống</div>
-        
+
         <button onClick={() => setActiveTab('statistics')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
           <BarChart3 className="w-[18px] h-[18px]" /><span>Thống kê sức khoẻ</span>
         </button>
@@ -258,9 +358,12 @@ export function HealthDashboardPage() {
         <button className="w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10 text-[14px] font-semibold transition-all cursor-pointer">
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
-        
-        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${['settings', 'profile'].includes(activeTab) ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+
+        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
           <Settings className="w-[18px] h-[18px]" /><span>Cài đặt</span>
+        </button>
+        <button onClick={() => setActiveTab('security')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'security' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+          <Shield className="w-[18px] h-[18px]" /><span>Bảo mật</span>
         </button>
       </aside>
 
@@ -269,12 +372,13 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Home className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('settings')} className={`p-[10px] rounded-[11px] ${['settings', 'profile'].includes(activeTab) ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Settings className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('settings')} className={`p-[10px] rounded-[11px] ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Settings className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('security')} className={`p-[10px] rounded-[11px] ${activeTab === 'security' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Shield className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
       <main className="flex-1 p-[20px] pb-[90px] md:pb-[60px] md:p-[30px_40px] max-w-[1500px] w-full relative">
-        
+
         {/* TAB 1: TỔNG QUAN */}
         {activeTab === 'dashboard' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -293,8 +397,8 @@ export function HealthDashboardPage() {
                     <TrendingUp className="w-[14px] h-[14px]" /> {status.trend}
                   </div>
                 </div>
-                <div className="w-[170px] h-[170px] rounded-full flex justify-center items-center mt-[20px] md:mt-0 relative z-10" 
-                     style={{ background: `conic-gradient(${appSettings.darkMode ? status.darkColor : status.color} ${status.score}%, ${appSettings.darkMode ? '#334155' : '#e9eef2'} ${status.score}%)` }}>
+                <div className="w-[170px] h-[170px] rounded-full flex justify-center items-center mt-[20px] md:mt-0 relative z-10"
+                  style={{ background: `conic-gradient(${appSettings.darkMode ? status.darkColor : status.color} ${status.score}%, ${appSettings.darkMode ? '#334155' : '#e9eef2'} ${status.score}%)` }}>
                   <div className="w-[132px] h-[132px] bg-white dark:bg-[#1e293b] rounded-full flex flex-col justify-center items-center shadow-sm">
                     <strong className="text-[38px] font-bold">{status.score}</strong>
                     <span className="text-[11px] text-[#8b96a5] dark:text-slate-400">/ 100</span>
@@ -380,20 +484,20 @@ export function HealthDashboardPage() {
                 <div className="font-bold text-[16px]">Hoạt động trong tuần</div>
                 <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Số bước chân mỗi ngày</div>
               </div>
-              
+
               <div className="h-[280px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={getStepsChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4ade80" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={1}/>
+                        <stop offset="0%" stopColor="#4ade80" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={1} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#f1f5f9'} />
                     <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
                     <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                    <Tooltip cursor={{fill: appSettings.darkMode ? '#334155' : '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }}/>
+                    <Tooltip cursor={{ fill: appSettings.darkMode ? '#334155' : '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }} />
                     <Bar dataKey="steps" name="Số bước" fill="url(#colorSteps)" radius={[6, 6, 0, 0]} barSize={36} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -405,7 +509,7 @@ export function HealthDashboardPage() {
         {/* TAB 2: NHỊP TIM */}
         {activeTab === 'heart' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-             <div className="mb-[25px]">
+            <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Nhịp tim</h2>
               <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Theo dõi dữ liệu nhịp tim trực tiếp từ thiết bị đeo.</p>
             </div>
@@ -436,7 +540,7 @@ export function HealthDashboardPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                       <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="#18b77a" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}/>
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
                       <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#18b77a" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -475,7 +579,7 @@ export function HealthDashboardPage() {
         {/* TAB 3: SpO2 */}
         {activeTab === 'spo2' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-             <div className="mb-[25px]">
+            <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Nồng độ Oxy (SpO₂)</h2>
               <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Theo dõi độ bão hòa oxy trong máu thời gian thực.</p>
             </div>
@@ -506,7 +610,7 @@ export function HealthDashboardPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                       <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
                       <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}/>
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
                       <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -545,7 +649,7 @@ export function HealthDashboardPage() {
         {/* TAB 4: THỐNG KÊ SỨC KHOẺ */}
         {activeTab === 'statistics' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-             <div className="mb-[25px]">
+            <div className="mb-[25px]">
               <h2 className="text-[24px] font-bold">Thống kê sức khoẻ</h2>
               <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Báo cáo chi tiết và phân tích xu hướng thể chất của bạn.</p>
             </div>
@@ -606,14 +710,14 @@ export function HealthDashboardPage() {
                   <div className="font-bold text-[16px]">Biểu đồ tổng hợp Nhịp tim & SpO₂</div>
                   <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Dữ liệu lưu trữ hệ thống</div>
                 </div>
-                
+
                 <div className="flex bg-[#f5f7fb] dark:bg-[#0f172a] p-1 rounded-[10px] shrink-0">
                   <button onClick={() => setViewMode('live')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'live' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Live</button>
                   <button onClick={() => setViewMode('daily')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'daily' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Ngày</button>
                   <button onClick={() => setViewMode('monthly')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'monthly' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Tháng</button>
                 </div>
               </div>
-              
+
               <div className="h-[350px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={getChartData()} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
@@ -621,8 +725,8 @@ export function HealthDashboardPage() {
                     <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
                     <YAxis yAxisId="left" stroke="#18b77a" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }}/>
-                    <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }}/>
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} />
+                    <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
                     <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#18b77a" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
                     <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
                   </LineChart>
@@ -671,7 +775,7 @@ export function HealthDashboardPage() {
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
               <div className="font-bold text-[16px] mb-[20px]">Báo cáo gần đây</div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse min-w-[600px]">
                   <thead>
@@ -707,7 +811,7 @@ export function HealthDashboardPage() {
                             </span>
                           </td>
                           <td className="py-4 px-4 text-right">
-                            <button 
+                            <button
                               onClick={() => setSelectedReport(report)}
                               className="bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] dark:hover:bg-[#18b77a]/40 transition-colors"
                             >
@@ -740,7 +844,7 @@ export function HealthDashboardPage() {
                   <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
                     <User className="w-[18px] h-[18px]" /> Tài khoản
                   </h3>
-                  
+
                   {/* BẤM VÀO ĐÂY SẼ CHUYỂN SANG TRANG /profile */}
                   <div onClick={() => navigate('/profile')} className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
                     <div className="flex items-center gap-3">
@@ -752,7 +856,7 @@ export function HealthDashboardPage() {
                     </div>
                     <ChevronRight className="text-slate-400 w-5 h-5" />
                   </div>
-                  
+
                   <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
                     <div className="flex items-center gap-3">
                       <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Shield className="w-[18px] h-[18px]" /></div>
@@ -907,13 +1011,79 @@ export function HealthDashboardPage() {
           </div>
         )}
 
+        {/* TAB BẢO MẬT */}
+        {activeTab === 'security' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-3xl mx-auto">
+            <div className="mb-[25px]">
+              <h2 className="text-[24px] font-bold flex items-center gap-3">
+                <Shield className="w-7 h-7 text-[#18b77a]" /> Bảo mật tài khoản
+              </h2>
+              <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Quản lý mật khẩu và bảo mật tài khoản của bạn.</p>
+            </div>
+
+            <div className="space-y-5">
+              {/* Đổi mật khẩu */}
+              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[28px] transition-colors duration-300">
+                <h3 className="font-bold text-[17px] mb-1 flex items-center gap-2 text-slate-900 dark:text-white">
+                  <Lock className="w-5 h-5 text-[#18b77a]" /> Đổi mật khẩu
+                </h3>
+                <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mb-6">Mật khẩu mạnh giúp bảo vệ tài khoản của bạn tốt hơn.</p>
+
+                <SecurityPasswordForm />
+              </div>
+
+              {/* Thông tin tài khoản */}
+              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[28px] transition-colors duration-300">
+                <h3 className="font-bold text-[17px] mb-5 flex items-center gap-2 text-slate-900 dark:text-white">
+                  <User className="w-5 h-5 text-[#18b77a]" /> Thông tin tài khoản
+                </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
+                    <div>
+                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Tên đăng nhập</p>
+                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">@{user?.username || 'N/A'}</p>
+                    </div>
+                    <span className="text-xs bg-[#e9faf3] dark:bg-[#18b77a]/10 text-[#18b77a] font-semibold px-3 py-1.5 rounded-full">Không thể đổi</span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
+                    <div>
+                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Email</p>
+                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">{user?.email || 'N/A'}</p>
+                    </div>
+                    <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold px-3 py-1.5 rounded-full">Đã xác minh ✓</span>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Ngày tham gia</p>
+                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">
+                        {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vùng nguy hiểm */}
+              <div className="bg-white dark:bg-[#1e293b] border border-red-200 dark:border-red-900/50 rounded-[18px] p-[28px] transition-colors duration-300">
+                <h3 className="font-bold text-[17px] mb-1 flex items-center gap-2 text-red-600 dark:text-red-400">
+                  <Shield className="w-5 h-5" /> Vùng nguy hiểm
+                </h3>
+                <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mb-5">Các hành động này không thể hoàn tác. Hãy thận trọng.</p>
+                <button className="flex items-center gap-2 px-5 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl font-semibold text-[14px] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                  <LogOutIcon /> Đăng xuất khỏi tất cả thiết bị
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 7: HỒ SƠ CÁ NHÂN (TÍCH HỢP TRONG CÙNG 1 FILE) */}
         {activeTab === 'profile' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 max-w-3xl mx-auto">
             {/* Header / Nút quay lại */}
             <div className="flex items-center gap-4 mb-[25px]">
-              <button 
-                onClick={() => setActiveTab('settings')} 
+              <button
+                onClick={() => setActiveTab('settings')}
                 className="p-2 bg-white dark:bg-[#1e293b] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors border border-[#e8edf2] dark:border-[#334155]"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -925,7 +1095,7 @@ export function HealthDashboardPage() {
             </div>
 
             <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[30px] transition-colors duration-300">
-              
+
               {/* Avatar Section */}
               <div className="flex flex-col items-center mb-8 mt-2">
                 <div className="w-24 h-24 bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#18b77a]/30 dark:to-[#18b77a]/10 text-[#0b9665] dark:text-[#18b77a] rounded-full flex items-center justify-center text-3xl font-bold mb-3 shadow-sm border border-[#a3e4c8] dark:border-[#18b77a]/30">
@@ -938,7 +1108,7 @@ export function HealthDashboardPage() {
 
               {/* Form Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                
+
                 {/* Họ và tên */}
                 <div className="col-span-1 md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Họ và tên</label>
@@ -946,12 +1116,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <User className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="displayName"
                       value={profileData.displayName}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="Nhập họ và tên"
                     />
                   </div>
@@ -964,12 +1134,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Calendar className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       name="dob"
                       value={profileData.dob}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -977,7 +1147,7 @@ export function HealthDashboardPage() {
                 {/* Giới tính */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Giới tính</label>
-                  <select 
+                  <select
                     name="gender"
                     value={profileData.gender}
                     onChange={handleProfileChange}
@@ -997,12 +1167,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Mail className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="email" 
+                    <input
+                      type="email"
                       name="email"
                       value={profileData.email}
                       disabled
-                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-[#334155] rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed text-sm" 
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-[#334155] rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed text-sm"
                       placeholder="nguyenan@example.com"
                     />
                   </div>
@@ -1015,12 +1185,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Phone className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       name="phone"
                       value={profileData.phone}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="0901234567"
                     />
                   </div>
@@ -1033,12 +1203,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Ruler className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="height"
                       value={profileData.height}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="170"
                     />
                   </div>
@@ -1051,12 +1221,12 @@ export function HealthDashboardPage() {
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                       <Scale className="h-[18px] w-[18px]" />
                     </div>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       name="weight"
                       value={profileData.weight}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm" 
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="65"
                     />
                   </div>
@@ -1065,7 +1235,7 @@ export function HealthDashboardPage() {
                 {/* Mục tiêu sức khỏe */}
                 <div className="col-span-1 md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Mục tiêu sức khỏe</label>
-                  <select 
+                  <select
                     name="healthGoal"
                     value={profileData.healthGoal}
                     onChange={handleProfileChange}
@@ -1082,7 +1252,7 @@ export function HealthDashboardPage() {
 
               {/* Nút lưu */}
               <div className="mt-8 flex justify-end">
-                <button 
+                <button
                   onClick={handleSaveProfile}
                   disabled={isSavingProfile}
                   className="bg-[#18b77a] hover:bg-[#149965] text-white px-8 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2"

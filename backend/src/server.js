@@ -7,7 +7,6 @@ import cookieParser from "cookie-parser";
 import { protectedRoute } from "./middlewares/authMiddleware.js";
 import http from "http"; 
 import { Server } from "socket.io";
-import { updateProfile } from "./controllers/authController.js"; 
 import cors from "cors";
 import mqtt from "mqtt"; 
 import cron from "node-cron";
@@ -171,7 +170,7 @@ cron.schedule("59 23 * * *", async () => {
 
 // public routes
 app.use("/api/auth", authRoute);
-app.put("/api/users/profile", protectedRoute, updateProfile);
+
 
 // private routes
 app.use(protectedRoute);
