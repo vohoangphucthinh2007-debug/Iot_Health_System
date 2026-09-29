@@ -1,11 +1,19 @@
 import { HeartPulse, ShieldCheck, ArrowRight, ActivitySquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router"; 
+import { Link, useNavigate } from "react-router"; 
 import { useAuthStore } from "@/stores/useAuthStore"; 
+import { useEffect } from "react";
 
 export default function HomePage() {
   // Lấy trạng thái user để đổi nút ở giữa trang
   const { user } = useAuthStore(); 
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">

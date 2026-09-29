@@ -259,7 +259,7 @@ export function HealthDashboardPage() {
   const status = getHealthStatus();
 
   return (
-    <div className="flex flex-col md:flex-row bg-[#f5f7fb] dark:bg-[#0f172a] text-[#17212b] dark:text-white font-sans w-full min-h-[calc(100vh-65px)] transition-colors duration-300">
+    <div className="flex flex-col md:flex-row bg-[#f5f7fb] dark:bg-[#0f172a] text-[#17212b] dark:text-white font-sans w-full min-h-[100dvh] md:min-h-[calc(100vh-65px)] transition-colors duration-300">
 
       {/* ================= SIDEBAR ================= */}
       <aside className="hidden md:block w-[245px] shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto bg-white dark:bg-[#1e293b] border-r border-[#e8edf2] dark:border-[#334155] py-[25px] px-[15px] z-10 transition-colors duration-300">
