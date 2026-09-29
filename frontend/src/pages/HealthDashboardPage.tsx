@@ -253,7 +253,7 @@ export function HealthDashboardPage() {
     if (spO2 < 95) return { text: "SpO2 Đang Thấp!", score: 65, trend: "Cần chú ý", color: "#f45d69", darkColor: "#f45d69" };
     if (heartRate > 100) return { text: "Nhịp tim cao", score: 75, trend: "Vận động mạnh?", color: "#f5a33b", darkColor: "#f5a33b" };
     if (heartRate < 60) return { text: "Nhịp tim thấp", score: 80, trend: "Đang nghỉ ngơi", color: "#4385f5", darkColor: "#4385f5" };
-    return { text: "Sức khỏe ổn định", score: 98, trend: "Tốt hơn 8% so với tuần trước", color: "#18b77a", darkColor: "#18b77a" };
+    return { text: "Sức khỏe ổn định", score: 98, trend: "Tốt hơn 8% so với tuần trước", color: "#2563eb", darkColor: "#2563eb" };
   };
 
   const status = getHealthStatus();
@@ -265,26 +265,26 @@ export function HealthDashboardPage() {
       <aside className="hidden md:block w-[245px] shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto bg-white dark:bg-[#1e293b] border-r border-[#e8edf2] dark:border-[#334155] py-[25px] px-[15px] z-10 transition-colors duration-300">
         <div className="text-[10px] font-bold text-[#a2aab5] dark:text-slate-400 tracking-[1px] px-[13px] mb-[9px] uppercase">Theo dõi</div>
 
-        <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'dashboard' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <Home className="w-[18px] h-[18px]" /><span>Tổng quan</span>
         </button>
-        <button onClick={() => setActiveTab('heart')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('heart')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'heart' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <HeartPulse className="w-[18px] h-[18px]" /><span>Nhịp tim</span>
         </button>
-        <button onClick={() => setActiveTab('spo2')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('spo2')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'spo2' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <Wind className="w-[18px] h-[18px]" /><span>SpO₂</span>
         </button>
 
         <div className="text-[10px] font-bold text-[#a2aab5] dark:text-slate-400 tracking-[1px] px-[13px] m-[22px_0_9px] uppercase mt-4">Hệ thống</div>
 
-        <button onClick={() => setActiveTab('statistics')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('statistics')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'statistics' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <BarChart3 className="w-[18px] h-[18px]" /><span>Thống kê sức khoẻ</span>
         </button>
-        <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'reports' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <FileText className="w-[18px] h-[18px]" /><span>Báo cáo</span>
         </button>
 
-        <button onClick={() => setActiveTab('device')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'device' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
+        <button onClick={() => setActiveTab('device')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'device' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#2563eb] hover:bg-[#dbeafe] dark:hover:bg-[#2563eb]/10'}`}>
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
 
@@ -292,12 +292,12 @@ export function HealthDashboardPage() {
 
       {/* ================= BOTTOM NAV (MOBILE) ================= */}
       <nav className="md:hidden fixed bottom-0 left-0 w-full h-[65px] bg-white dark:bg-[#1e293b] border-t border-[#e8edf2] dark:border-[#334155] z-[50] flex justify-around items-center shadow-[0_-5px_20px_rgba(0,0,0,0.05)] transition-colors duration-300">
-        <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Home className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('device')} className={`p-[10px] rounded-[11px] ${activeTab === 'device' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Cpu className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><FileText className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Home className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('device')} className={`p-[10px] rounded-[11px] ${activeTab === 'device' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Cpu className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><FileText className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -313,11 +313,11 @@ export function HealthDashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-[20px] mb-[20px]">
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none min-h-[270px] p-[25px] flex flex-col md:flex-row items-center justify-between overflow-hidden relative transition-colors duration-300">
-                <div className="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none" style={{ background: 'radial-gradient(circle at 90% 20%, #18b77a 0, transparent 40%)' }}></div>
+                <div className="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none" style={{ background: 'radial-gradient(circle at 90% 20%, #2563eb 0, transparent 40%)' }}></div>
                 <div className="text-center md:text-left relative z-10">
                   <h2 className="text-[23px] font-bold">Điểm sức khỏe</h2>
                   <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] m-[8px_0_20px]">Tổng hợp dựa trên dữ liệu từ thiết bị đeo.</p>
-                  <div className="inline-flex items-center gap-[8px] bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a] p-[8px_12px] rounded-[30px] text-[12px] font-semibold">
+                  <div className="inline-flex items-center gap-[8px] bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb] p-[8px_12px] rounded-[30px] text-[12px] font-semibold">
                     <TrendingUp className="w-[14px] h-[14px]" /> {status.trend}
                   </div>
                 </div>
@@ -341,8 +341,8 @@ export function HealthDashboardPage() {
                       <span className="w-[7px] h-[7px] bg-[#f45d69] rounded-full mr-[6px]"></span> Mất kết nối
                     </div>
                   ) : heartRate > 0 ? (
-                    <div className="text-[#18b77a] text-[12px] font-semibold flex items-center bg-[#e9faf3] dark:bg-[#18b77a]/10 px-3 py-1.5 rounded-full">
-                      <span className="w-[7px] h-[7px] bg-[#18b77a] rounded-full mr-[6px] animate-pulse"></span> Đang truyền
+                    <div className="text-[#2563eb] text-[12px] font-semibold flex items-center bg-[#eff6ff] dark:bg-[#2563eb]/10 px-3 py-1.5 rounded-full">
+                      <span className="w-[7px] h-[7px] bg-[#2563eb] rounded-full mr-[6px] animate-pulse"></span> Đang truyền
                     </div>
                   ) : (
                     <div className="text-[#f5a33b] text-[12px] font-semibold flex items-center bg-[#fff5e8] dark:bg-[#f5a33b]/10 px-3 py-1.5 rounded-full">
@@ -359,20 +359,20 @@ export function HealthDashboardPage() {
                     <p className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Kết nối Socket.io · MAX30102</p>
                   </div>
                 </div>
-                <button onClick={() => setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minHr: 999, maxSpo2: 0, minSpo2: 100 })} className="w-full border-none bg-[#e9faf3] dark:bg-[#18b77a]/10 text-[#18b77a] p-[10px_15px] rounded-[10px] font-semibold cursor-pointer hover:bg-[#d6f5e7] dark:hover:bg-[#18b77a]/20 transition-colors flex justify-center items-center gap-2">
+                <button onClick={() => setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minHr: 999, maxSpo2: 0, minSpo2: 100 })} className="w-full border-none bg-[#eff6ff] dark:bg-[#2563eb]/10 text-[#2563eb] p-[10px_15px] rounded-[10px] font-semibold cursor-pointer hover:bg-[#d6f5e7] dark:hover:bg-[#2563eb]/20 transition-colors flex justify-center items-center gap-2">
                   <RefreshCw className="w-[14px] h-[14px]" /> Khởi tạo lại phiên đo
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px] mb-[20px]">
-              <div onClick={() => setActiveTab('heart')} className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[24px] cursor-pointer hover:border-[#18b77a] transition-all duration-300">
+              <div onClick={() => setActiveTab('heart')} className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[24px] cursor-pointer hover:border-[#2563eb] transition-all duration-300">
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] dark:text-slate-400 text-[13px] font-medium">Nhịp tim</div>
                     <div className="text-[30px] font-bold mt-[4px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] font-normal text-[#8b96a5] dark:text-slate-400">BPM</small></div>
                   </div>
-                  <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10">
+                  <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10">
                     <HeartPulse className={`w-[24px] h-[24px] ${heartRate > 0 ? 'animate-pulse' : ''}`} />
                   </div>
                 </div>
@@ -414,8 +414,8 @@ export function HealthDashboardPage() {
                   <BarChart data={getStepsChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4ade80" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={1} />
+                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#f1f5f9'} />
@@ -442,9 +442,9 @@ export function HealthDashboardPage() {
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">Nhịp tim hiện tại</div>
                 <div className="text-[42px] font-bold my-[15px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
-                <span className="text-[#18b77a] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#18b77a] animate-pulse"></span> Trong giới hạn bình thường</span>
+                <span className="text-[#2563eb] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#2563eb] animate-pulse"></span> Trong giới hạn bình thường</span>
                 <div className="w-full bg-slate-100 dark:bg-slate-700 h-[8px] rounded-full overflow-hidden mt-4">
-                  <div className="bg-[#18b77a] h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((heartRate / 150) * 100, 100)}%` }}></div>
+                  <div className="bg-[#2563eb] h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((heartRate / 150) * 100, 100)}%` }}></div>
                 </div>
               </div>
 
@@ -463,9 +463,9 @@ export function HealthDashboardPage() {
                     <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                       <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#18b77a" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#2563eb" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
                       <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                      <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#18b77a" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -609,7 +609,7 @@ export function HealthDashboardPage() {
                     <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[3px]">Tổng Quãng đường</div>
                     <div className="text-[25px] font-bold mt-[10px]">{distanceKm} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">km</small></div>
                   </div>
-                  <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#10b981] bg-[#d1fae5] dark:bg-[#10b981]/20">
+                  <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#3b82f6] bg-[#d1fae5] dark:bg-[#3b82f6]/20">
                     <Route className="w-[20px] h-[20px]" />
                   </div>
                 </div>
@@ -636,9 +636,9 @@ export function HealthDashboardPage() {
                 </div>
 
                 <div className="flex bg-[#f5f7fb] dark:bg-[#0f172a] p-1 rounded-[10px] shrink-0">
-                  <button onClick={() => setViewMode('live')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'live' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Live</button>
-                  <button onClick={() => setViewMode('daily')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'daily' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Ngày</button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'monthly' ? 'bg-white dark:bg-[#1e293b] text-[#18b77a] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Tháng</button>
+                  <button onClick={() => setViewMode('live')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'live' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Live</button>
+                  <button onClick={() => setViewMode('daily')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'daily' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Ngày</button>
+                  <button onClick={() => setViewMode('monthly')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'monthly' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Tháng</button>
                 </div>
               </div>
 
@@ -647,11 +647,11 @@ export function HealthDashboardPage() {
                   <LineChart data={getChartData()} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                     <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
-                    <YAxis yAxisId="left" stroke="#18b77a" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis yAxisId="left" stroke="#2563eb" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} />
                     <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
-                    <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#18b77a" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#2563eb" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
                     <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -663,7 +663,7 @@ export function HealthDashboardPage() {
               <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px] mb-[15px]">Dự báo dựa trên chuỗi dữ liệu 7 ngày qua</div>
 
               <div className="flex gap-[15px] py-[12px] border-b border-[#e8edf2] dark:border-[#334155]">
-                <div className="w-[37px] h-[37px] shrink-0 rounded-[10px] flex justify-center items-center bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a]">
+                <div className="w-[37px] h-[37px] shrink-0 rounded-[10px] flex justify-center items-center bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb]">
                   <Award className="w-[18px] h-[18px]" />
                 </div>
                 <div>
@@ -714,7 +714,7 @@ export function HealthDashboardPage() {
                     {isLoadingReports ? (
                       <tr>
                         <td colSpan={4} className="text-center py-8 text-slate-500 text-[14px]">
-                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#18b77a]" />
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-[#2563eb]" />
                           Đang tải dữ liệu báo cáo...
                         </td>
                       </tr>
@@ -730,14 +730,14 @@ export function HealthDashboardPage() {
                           <td className="py-4 px-4 text-[14px] text-slate-800 dark:text-slate-200">{report.date}</td>
                           <td className="py-4 px-4 text-[14px] text-slate-800 dark:text-slate-200">{report.type}</td>
                           <td className="py-4 px-4">
-                            <span className="bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a] px-3 py-1 rounded-full text-[12px] font-semibold">
+                            <span className="bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb] px-3 py-1 rounded-full text-[12px] font-semibold">
                               {report.status}
                             </span>
                           </td>
                           <td className="py-4 px-4 text-right">
                             <button
                               onClick={() => setSelectedReport(report)}
-                              className="bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] dark:hover:bg-[#18b77a]/40 transition-colors"
+                              className="bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb] px-4 py-1.5 rounded-lg text-[13px] font-bold hover:bg-[#d6f5e7] dark:hover:bg-[#2563eb]/40 transition-colors"
                             >
                               Xem
                             </button>
@@ -764,11 +764,11 @@ export function HealthDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* Box 1: Kết nối */}
               <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 ${isConnected ? 'bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a]' : 'bg-red-50 dark:bg-red-500/10 text-red-500'}`}>
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 ${isConnected ? 'bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb]' : 'bg-red-50 dark:bg-red-500/10 text-red-500'}`}>
                   {isConnected ? <Cpu className="w-8 h-8" /> : <X className="w-8 h-8" />}
                 </div>
                 <h3 className="font-bold text-lg text-slate-800 dark:text-white">PulseBand S3</h3>
-                <p className={`text-sm font-medium ${isConnected ? 'text-[#18b77a]' : 'text-red-500'}`}>
+                <p className={`text-sm font-medium ${isConnected ? 'text-[#2563eb]' : 'text-red-500'}`}>
                   {isConnected ? 'Đang kết nối' : 'Mất kết nối'}
                 </p>
                 <div className="text-xs text-slate-500 mt-2">IP: {deviceInfo.ip || 'N/A'}</div>
@@ -867,10 +867,10 @@ export function HealthDashboardPage() {
 
               {/* Avatar Section */}
               <div className="flex flex-col items-center mb-8 mt-2">
-                <div className="w-24 h-24 bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#18b77a]/30 dark:to-[#18b77a]/10 text-[#0b9665] dark:text-[#18b77a] rounded-full flex items-center justify-center text-3xl font-bold mb-3 shadow-sm border border-[#a3e4c8] dark:border-[#18b77a]/30">
+                <div className="w-24 h-24 bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#2563eb]/30 dark:to-[#2563eb]/10 text-[#0b9665] dark:text-[#2563eb] rounded-full flex items-center justify-center text-3xl font-bold mb-3 shadow-sm border border-[#a3e4c8] dark:border-[#2563eb]/30">
                   {profileData.displayName ? profileData.displayName.charAt(0).toUpperCase() : 'NA'}
                 </div>
-                <button className="text-[#18b77a] font-semibold text-sm flex items-center gap-1.5 hover:text-[#149965] transition-colors">
+                <button className="text-[#2563eb] font-semibold text-sm flex items-center gap-1.5 hover:text-[#149965] transition-colors">
                   <Camera className="w-4 h-4" /> Thay đổi ảnh đại diện
                 </button>
               </div>
@@ -890,7 +890,7 @@ export function HealthDashboardPage() {
                       name="displayName"
                       value={profileData.displayName}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="Nhập họ và tên"
                     />
                   </div>
@@ -908,7 +908,7 @@ export function HealthDashboardPage() {
                       name="dob"
                       value={profileData.dob}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm [color-scheme:light] dark:[color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -920,7 +920,7 @@ export function HealthDashboardPage() {
                     name="gender"
                     value={profileData.gender}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm appearance-none"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm appearance-none"
                   >
                     <option value="Chưa chọn">Chưa chọn</option>
                     <option value="Nam">Nam</option>
@@ -959,7 +959,7 @@ export function HealthDashboardPage() {
                       name="phone"
                       value={profileData.phone}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="0901234567"
                     />
                   </div>
@@ -977,7 +977,7 @@ export function HealthDashboardPage() {
                       name="height"
                       value={profileData.height}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="170"
                     />
                   </div>
@@ -995,7 +995,7 @@ export function HealthDashboardPage() {
                       name="weight"
                       value={profileData.weight}
                       onChange={handleProfileChange}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm"
                       placeholder="65"
                     />
                   </div>
@@ -1008,7 +1008,7 @@ export function HealthDashboardPage() {
                     name="healthGoal"
                     value={profileData.healthGoal}
                     onChange={handleProfileChange}
-                    className="w-full px-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm appearance-none"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm appearance-none"
                   >
                     <option value="Duy trì sức khỏe">Duy trì sức khỏe</option>
                     <option value="Giảm cân">Giảm cân</option>
@@ -1024,7 +1024,7 @@ export function HealthDashboardPage() {
                 <button
                   onClick={handleSaveProfile}
                   disabled={isSavingProfile}
-                  className="bg-[#18b77a] hover:bg-[#149965] text-white px-8 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2"
+                  className="bg-[#2563eb] hover:bg-[#149965] text-white px-8 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2"
                 >
                   {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                   Lưu thay đổi
@@ -1045,7 +1045,7 @@ export function HealthDashboardPage() {
             </button>
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1">
-                <FileText className="h-5 w-5 text-[#18b77a]" />
+                <FileText className="h-5 w-5 text-[#2563eb]" />
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.type}</h3>
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400">Ngày tổng hợp: {selectedReport.date}</p>
@@ -1069,13 +1069,13 @@ export function HealthDashboardPage() {
                   <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.calo?.toLocaleString() || 0} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">kcal</span></p>
                 </div>
               </div>
-              <div className="bg-[#e9faf3] dark:bg-[#18b77a]/10 p-4 rounded-xl border border-[#b5efd9] dark:border-[#18b77a]/30">
-                <p className="text-sm text-[#0b9665] dark:text-[#18b77a] font-medium leading-relaxed">
+              <div className="bg-[#eff6ff] dark:bg-[#2563eb]/10 p-4 rounded-xl border border-[#b5efd9] dark:border-[#2563eb]/30">
+                <p className="text-sm text-[#0b9665] dark:text-[#2563eb] font-medium leading-relaxed">
                   <strong>Nhận xét:</strong> Các chỉ số trong {selectedReport.type === "Báo cáo hàng ngày" ? "ngày" : "tuần"} này đều nằm trong mức an toàn. Mức vận động đạt tiêu chuẩn. Hãy tiếp tục duy trì nhé!
                 </p>
               </div>
             </div>
-            <button className="w-full mt-6 bg-[#18b77a] hover:bg-[#149965] text-white py-2.5 rounded-xl font-bold transition-colors" onClick={() => setSelectedReport(null)}>
+            <button className="w-full mt-6 bg-[#2563eb] hover:bg-[#149965] text-white py-2.5 rounded-xl font-bold transition-colors" onClick={() => setSelectedReport(null)}>
               Đóng báo cáo
             </button>
           </div>

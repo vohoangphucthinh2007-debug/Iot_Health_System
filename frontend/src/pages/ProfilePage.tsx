@@ -87,10 +87,10 @@ export default function ProfilePage() {
           
           {/* Avatar Section */}
           <div className="flex flex-col items-center mb-10">
-            <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#18b77a]/30 dark:to-[#18b77a]/10 text-[#0b9665] dark:text-[#18b77a] rounded-full flex items-center justify-center text-4xl font-bold mb-4 shadow-sm border border-[#a3e4c8] dark:border-[#18b77a]/30">
+            <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] dark:from-[#2563eb]/30 dark:to-[#2563eb]/10 text-[#0b9665] dark:text-[#2563eb] rounded-full flex items-center justify-center text-4xl font-bold mb-4 shadow-sm border border-[#a3e4c8] dark:border-[#2563eb]/30">
               {profileData.displayName ? profileData.displayName.charAt(0).toUpperCase() : 'U'}
             </div>
-            <button className="text-[#18b77a] font-semibold text-[14px] flex items-center gap-1.5 hover:text-[#149965] transition-colors">
+            <button className="text-[#2563eb] font-semibold text-[14px] flex items-center gap-1.5 hover:text-[#149965] transition-colors">
               <Camera className="w-4 h-4" /> Thay đổi ảnh đại diện
             </button>
           </div>
@@ -110,7 +110,7 @@ export default function ProfilePage() {
                   name="displayName"
                   value={profileData.displayName}
                   onChange={handleProfileChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
                   placeholder="Nguyễn An"
                 />
               </div>
@@ -128,7 +128,7 @@ export default function ProfilePage() {
                   name="dob"
                   value={profileData.dob}
                   onChange={handleProfileChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] [color-scheme:light] dark:[color-scheme:dark]" 
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px] [color-scheme:light] dark:[color-scheme:dark]" 
                 />
               </div>
             </div>
@@ -140,7 +140,7 @@ export default function ProfilePage() {
                 name="gender"
                 value={profileData.gender}
                 onChange={handleProfileChange}
-                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
               >
                 <option value="Chưa chọn">Chưa chọn</option>
                 <option value="Nam">Nam</option>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
                   name="phone"
                   value={profileData.phone}
                   onChange={handleProfileChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
                   placeholder="0901234567"
                 />
               </div>
@@ -197,7 +197,7 @@ export default function ProfilePage() {
                   name="height"
                   value={profileData.height}
                   onChange={handleProfileChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
                   placeholder="170"
                 />
               </div>
@@ -215,7 +215,7 @@ export default function ProfilePage() {
                   name="weight"
                   value={profileData.weight}
                   onChange={handleProfileChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px]" 
                   placeholder="65"
                 />
               </div>
@@ -228,7 +228,7 @@ export default function ProfilePage() {
                 name="healthGoal"
                 value={profileData.healthGoal}
                 onChange={handleProfileChange}
-                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-white dark:bg-[#0f172a] border border-[#e8edf2] dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-[14px] appearance-none cursor-pointer"
               >
                 <option value="Duy trì sức khỏe">Duy trì sức khỏe</option>
                 <option value="Giảm cân">Giảm cân</option>
@@ -244,7 +244,7 @@ export default function ProfilePage() {
             <button 
               onClick={handleSaveProfile}
               disabled={isSavingProfile}
-              className="bg-[#18b77a] hover:bg-[#149965] text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2 text-[15px] shadow-[0_4px_15px_rgba(24,183,122,0.3)] hover:shadow-[0_6px_20px_rgba(24,183,122,0.4)]"
+              className="bg-[#2563eb] hover:bg-[#149965] text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2 text-[15px] shadow-[0_4px_15px_rgba(24,183,122,0.3)] hover:shadow-[0_6px_20px_rgba(24,183,122,0.4)]"
             >
               {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
               Lưu thay đổi

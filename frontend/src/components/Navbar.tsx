@@ -41,7 +41,7 @@ const SecurityModal = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
-  const inputCls = "w-full pl-4 pr-11 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm";
+  const inputCls = "w-full pl-4 pr-11 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm";
   const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
   return (
@@ -53,7 +53,7 @@ const SecurityModal = ({ onClose }: { onClose: () => void }) => {
 
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-[#e9faf3] dark:bg-[#18b77a]/20 flex items-center justify-center text-[#18b77a]">
+            <div className="w-9 h-9 rounded-xl bg-[#eff6ff] dark:bg-[#2563eb]/20 flex items-center justify-center text-[#2563eb]">
               <Shield className="w-5 h-5" />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Bảo mật tài khoản</h3>
@@ -92,7 +92,7 @@ const SecurityModal = ({ onClose }: { onClose: () => void }) => {
               <p className="text-red-500 text-xs mt-1">Mật khẩu không khớp!</p>
             )}
           </div>
-          <button type="submit" disabled={isLoading} className="w-full mt-2 bg-[#18b77a] hover:bg-[#149965] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 text-sm shadow-[0_4px_15px_rgba(24,183,122,0.3)]">
+          <button type="submit" disabled={isLoading} className="w-full mt-2 bg-[#2563eb] hover:bg-[#149965] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 text-sm shadow-[0_4px_15px_rgba(24,183,122,0.3)]">
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
             {isLoading ? 'Đang lưu...' : 'Cập nhật mật khẩu'}
           </button>
@@ -139,21 +139,21 @@ export default function Navbar() {
           <div className="flex items-center gap-2 sm:gap-6 shrink min-w-0">
             <Link to="/" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity shrink-0">
               <img src="/logo.jpg" alt="logo" className="h-7 sm:h-9 md:h-10 w-auto rounded-md object-contain" />
-              <span className="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-[#18b77a] to-blue-600 bg-clip-text text-transparent hidden sm:block">
+              <span className="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-[#2563eb] to-blue-600 bg-clip-text text-transparent hidden sm:block">
                 CSSK
               </span>
             </Link>
 
             <nav className="flex items-center gap-3 sm:gap-4 md:gap-6">
-              <Link to="/" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
+              <Link to="/" className="text-slate-600 dark:text-slate-300 hover:text-[#2563eb] dark:hover:text-[#2563eb] flex items-center gap-1 transition-colors">
                 <Home className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Trang chủ</span>
               </Link>
-              <Link to="/guide" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
+              <Link to="/guide" className="text-slate-600 dark:text-slate-300 hover:text-[#2563eb] dark:hover:text-[#2563eb] flex items-center gap-1 transition-colors">
                 <BookOpen className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Hướng dẫn</span>
               </Link>
-              <Link to="/dashboard" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
+              <Link to="/dashboard" className="text-slate-600 dark:text-slate-300 hover:text-[#2563eb] dark:hover:text-[#2563eb] flex items-center gap-1 transition-colors">
                 <ActivitySquare className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Bảng đo</span>
               </Link>
@@ -213,7 +213,7 @@ export default function Navbar() {
                         {/* Toggle switch */}
                         <div
                           onClick={() => toggleSetting('darkMode' as any)}
-                          className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-300 ${darkMode ? 'bg-[#18b77a]' : 'bg-[#e2e8f0]'}`}
+                          className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-300 ${darkMode ? 'bg-[#2563eb]' : 'bg-[#e2e8f0]'}`}
                         >
                           <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
                         </div>
