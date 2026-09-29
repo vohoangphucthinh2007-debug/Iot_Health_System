@@ -10,11 +10,12 @@ import {
   Home, HeartPulse, Wind, BarChart3, Settings,
   TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
   User, Shield, Bell, Droplet, Database, Download, Moon, Languages, Cloud, Info, ChevronRight,
-  Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Lock, Eye, EyeOff
+  Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+
 
 const dailyMockData = [
   { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
@@ -42,103 +43,8 @@ const ToggleSwitch = ({ active, onClick }: { active: boolean; onClick?: () => vo
   </div>
 );
 
-// Icon đăng xuất nhỏ dùng trong vùng nguy hiểm
-const LogOutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1" />
-  </svg>
-);
-
-// Form đổi mật khẩu — component riêng có state nội bộ
-import api from "@/lib/axios";
-import { toast } from "sonner";
-const SecurityPasswordForm = () => {
-  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (form.newPassword.length < 6) {
-      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
-      return;
-    }
-    if (form.newPassword !== form.confirmPassword) {
-      toast.error("Mật khẩu xác nhận không khớp!");
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await api.put("users/change-password", {
-        currentPassword: form.currentPassword,
-        newPassword: form.newPassword,
-      });
-      toast.success("Đổi mật khẩu thành công!");
-      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || "Đổi mật khẩu thất bại!";
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const inputCls = "w-full pl-4 pr-11 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm";
-  const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Mật khẩu hiện tại */}
-      <div>
-        <label className={labelCls}>Mật khẩu hiện tại</label>
-        <div className="relative">
-          <input type={showCurrent ? "text" : "password"} name="currentPassword" value={form.currentPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập mật khẩu hiện tại" />
-          <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-            {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mật khẩu mới */}
-      <div>
-        <label className={labelCls}>Mật khẩu mới</label>
-        <div className="relative">
-          <input type={showNew ? "text" : "password"} name="newPassword" value={form.newPassword} onChange={handleChange} required minLength={6} className={inputCls} placeholder="Ít nhất 6 ký tự" />
-          <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-            {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Xác nhận mật khẩu */}
-      <div>
-        <label className={labelCls}>Xác nhận mật khẩu mới</label>
-        <div className="relative">
-          <input type={showConfirm ? "text" : "password"} name="confirmPassword" value={form.confirmPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập lại mật khẩu mới" />
-          <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-            {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
-        {form.confirmPassword && form.newPassword !== form.confirmPassword && (
-          <p className="text-red-500 text-xs mt-1">Mật khẩu không khớp!</p>
-        )}
-      </div>
-
-      <button type="submit" disabled={isLoading} className="mt-2 bg-[#18b77a] hover:bg-[#149965] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center gap-2 text-sm shadow-[0_4px_15px_rgba(24,183,122,0.3)]">
-        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-        {isLoading ? 'Đang lưu...' : 'Cập nhật mật khẩu'}
-      </button>
-    </form>
-  );
-};
-
 export function HealthDashboardPage() {
+
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
 
@@ -147,7 +53,7 @@ export function HealthDashboardPage() {
   const initialTab = (searchParams.get('tab') as any) || 'dashboard';
 
   // Bao gồm tất cả các tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings' | 'security' | 'profile'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings' | 'profile'>(initialTab);
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -314,9 +220,14 @@ export function HealthDashboardPage() {
   };
 
   const getStepsChartData = () => {
-    const dynamicSteps = [...stepsMockData];
-    if (steps > 0) dynamicSteps[6] = { day: "Hôm nay", steps: steps };
-    return dynamicSteps;
+    // Nếu đang kết nối và có dữ liệu bước chân thật từ ESP32, chỉ hiển thị ngày hôm nay
+    if (isConnected && steps > 0) {
+      const dynamicSteps = [...stepsMockData];
+      dynamicSteps[6] = { day: "Hôm nay", steps: steps };
+      return dynamicSteps;
+    }
+    // Khi chưa kết nối: hiển thị mock (hôm nay = 0 / '--')
+    return stepsMockData;
   };
 
   const getHealthStatus = () => {
@@ -362,9 +273,6 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
           <Settings className="w-[18px] h-[18px]" /><span>Cài đặt</span>
         </button>
-        <button onClick={() => setActiveTab('security')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'security' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
-          <Shield className="w-[18px] h-[18px]" /><span>Bảo mật</span>
-        </button>
       </aside>
 
       {/* ================= BOTTOM NAV (MOBILE) ================= */}
@@ -372,8 +280,8 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('dashboard')} className={`p-[10px] rounded-[11px] ${activeTab === 'dashboard' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Home className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('settings')} className={`p-[10px] rounded-[11px] ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Settings className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('security')} className={`p-[10px] rounded-[11px] ${activeTab === 'security' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Shield className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -857,15 +765,9 @@ export function HealthDashboardPage() {
                     <ChevronRight className="text-slate-400 w-5 h-5" />
                   </div>
 
-                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Shield className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Bảo mật</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Mật khẩu, xác thực và phiên đăng nhập</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="text-slate-400 w-5 h-5" />
+                  <div className="flex items-center gap-2 mt-2 p-3 bg-[#e9faf3] dark:bg-[#18b77a]/10 rounded-xl text-[13px] text-[#0b9665] dark:text-[#18b77a] font-medium">
+                    <Shield className="w-4 h-4 shrink-0" />
+                    Cài đặt bảo mật đã được chuyển vào menu <strong>Profile</strong> trên thanh điều hướng.
                   </div>
                 </div>
 
@@ -1011,71 +913,7 @@ export function HealthDashboardPage() {
           </div>
         )}
 
-        {/* TAB BẢO MẬT */}
-        {activeTab === 'security' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-3xl mx-auto">
-            <div className="mb-[25px]">
-              <h2 className="text-[24px] font-bold flex items-center gap-3">
-                <Shield className="w-7 h-7 text-[#18b77a]" /> Bảo mật tài khoản
-              </h2>
-              <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Quản lý mật khẩu và bảo mật tài khoản của bạn.</p>
-            </div>
 
-            <div className="space-y-5">
-              {/* Đổi mật khẩu */}
-              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[28px] transition-colors duration-300">
-                <h3 className="font-bold text-[17px] mb-1 flex items-center gap-2 text-slate-900 dark:text-white">
-                  <Lock className="w-5 h-5 text-[#18b77a]" /> Đổi mật khẩu
-                </h3>
-                <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mb-6">Mật khẩu mạnh giúp bảo vệ tài khoản của bạn tốt hơn.</p>
-
-                <SecurityPasswordForm />
-              </div>
-
-              {/* Thông tin tài khoản */}
-              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[28px] transition-colors duration-300">
-                <h3 className="font-bold text-[17px] mb-5 flex items-center gap-2 text-slate-900 dark:text-white">
-                  <User className="w-5 h-5 text-[#18b77a]" /> Thông tin tài khoản
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div>
-                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Tên đăng nhập</p>
-                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">@{user?.username || 'N/A'}</p>
-                    </div>
-                    <span className="text-xs bg-[#e9faf3] dark:bg-[#18b77a]/10 text-[#18b77a] font-semibold px-3 py-1.5 rounded-full">Không thể đổi</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div>
-                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Email</p>
-                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">{user?.email || 'N/A'}</p>
-                    </div>
-                    <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold px-3 py-1.5 rounded-full">Đã xác minh ✓</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div>
-                      <p className="text-[14px] font-semibold text-slate-800 dark:text-slate-200">Ngày tham gia</p>
-                      <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mt-0.5">
-                        {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vùng nguy hiểm */}
-              <div className="bg-white dark:bg-[#1e293b] border border-red-200 dark:border-red-900/50 rounded-[18px] p-[28px] transition-colors duration-300">
-                <h3 className="font-bold text-[17px] mb-1 flex items-center gap-2 text-red-600 dark:text-red-400">
-                  <Shield className="w-5 h-5" /> Vùng nguy hiểm
-                </h3>
-                <p className="text-[13px] text-[#8b96a5] dark:text-slate-400 mb-5">Các hành động này không thể hoàn tác. Hãy thận trọng.</p>
-                <button className="flex items-center gap-2 px-5 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-xl font-semibold text-[14px] hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                  <LogOutIcon /> Đăng xuất khỏi tất cả thiết bị
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* TAB 7: HỒ SƠ CÁ NHÂN (TÍCH HỢP TRONG CÙNG 1 FILE) */}
         {activeTab === 'profile' && (

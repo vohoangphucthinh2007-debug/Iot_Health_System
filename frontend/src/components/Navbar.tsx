@@ -1,12 +1,112 @@
 import { useState, useEffect } from "react";
-import { User, ActivitySquare, Settings, LogOut, Home, BookOpen, X, Bell } from "lucide-react";
+import { User, ActivitySquare, LogOut, Home, BookOpen, X, Bell, Shield, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router"; 
 import { useAuthStore } from "@/stores/useAuthStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+
+// Modal bảo mật nhỏ gọn (đổi mật khẩu) — dùng trực tiếp trong Navbar
+import api from "@/lib/axios";
+import { toast } from "sonner";
+import { Eye, EyeOff, Lock, Loader2 } from "lucide-react";
+
+const SecurityModal = ({ onClose }: { onClose: () => void }) => {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.newPassword.length < 6) { toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!"); return; }
+    if (form.newPassword !== form.confirmPassword) { toast.error("Mật khẩu xác nhận không khớp!"); return; }
+    setIsLoading(true);
+    try {
+      await api.put("users/change-password", {
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      });
+      toast.success("Đổi mật khẩu thành công!");
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Đổi mật khẩu thất bại!");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const inputCls = "w-full pl-4 pr-11 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#18b77a]/20 focus:border-[#18b77a] outline-none text-slate-800 dark:text-white transition-all text-sm";
+  const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 border dark:border-[#334155]">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-9 h-9 rounded-xl bg-[#e9faf3] dark:bg-[#18b77a]/20 flex items-center justify-center text-[#18b77a]">
+              <Shield className="w-5 h-5" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Bảo mật tài khoản</h3>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className={labelCls}>Mật khẩu hiện tại</label>
+            <div className="relative">
+              <input type={showCurrent ? "text" : "password"} name="currentPassword" value={form.currentPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập mật khẩu hiện tại" />
+              <button type="button" onClick={() => setShowCurrent(!showCurrent)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Mật khẩu mới</label>
+            <div className="relative">
+              <input type={showNew ? "text" : "password"} name="newPassword" value={form.newPassword} onChange={handleChange} required minLength={6} className={inputCls} placeholder="Ít nhất 6 ký tự" />
+              <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Xác nhận mật khẩu mới</label>
+            <div className="relative">
+              <input type={showConfirm ? "text" : "password"} name="confirmPassword" value={form.confirmPassword} onChange={handleChange} required className={inputCls} placeholder="Nhập lại mật khẩu mới" />
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {form.confirmPassword && form.newPassword !== form.confirmPassword && (
+              <p className="text-red-500 text-xs mt-1">Mật khẩu không khớp!</p>
+            )}
+          </div>
+          <button type="submit" disabled={isLoading} className="w-full mt-2 bg-[#18b77a] hover:bg-[#149965] disabled:opacity-60 text-white px-6 py-2.5 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 text-sm shadow-[0_4px_15px_rgba(24,183,122,0.3)]">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+            {isLoading ? 'Đang lưu...' : 'Cập nhật mật khẩu'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 export default function Navbar() {
   const { user, signOut } = useAuthStore();
+  const { darkMode, toggleSetting } = useSettingsStore();
   const [showAppGuide, setShowAppGuide] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -85,7 +185,7 @@ export default function Navbar() {
                     {user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
                   </div>
                   
-                  <div className="absolute right-0 top-full pt-2 w-56 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                  <div className="absolute right-0 top-full pt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                     <div className="bg-white rounded-xl shadow-lg border border-slate-100 flex flex-col overflow-hidden">
                       <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
                         <p className="text-sm font-bold text-slate-900 truncate">{user.displayName || "Người dùng"}</p>
@@ -95,10 +195,30 @@ export default function Navbar() {
                         <Link to="/profile" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
                           <User className="h-4 w-4" /> Thông tin cá nhân
                         </Link>
-                        <Link to="/dashboard?tab=security" className="px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
-                          <Settings className="h-4 w-4" /> Bảo mật & Cài đặt
-                        </Link>
+                        {/* Bảo mật - mở modal trực tiếp */}
+                        <button
+                          onClick={() => setShowSecurityModal(true)}
+                          className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2"
+                        >
+                          <Shield className="h-4 w-4" /> Bảo mật tài khoản
+                        </button>
                       </div>
+
+                      {/* Chế độ tối — toggle ngay trong dropdown */}
+                      <div className="border-t border-slate-100 px-4 py-2.5 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-slate-700">
+                          {darkMode ? <Moon className="h-4 w-4 text-indigo-500" /> : <Sun className="h-4 w-4 text-amber-500" />}
+                          <span className="font-medium">Chế độ {darkMode ? 'tối' : 'sáng'}</span>
+                        </div>
+                        {/* Toggle switch */}
+                        <div
+                          onClick={() => toggleSetting('darkMode' as any)}
+                          className={`w-10 h-5 flex items-center rounded-full p-0.5 cursor-pointer transition-colors duration-300 ${darkMode ? 'bg-[#18b77a]' : 'bg-[#e2e8f0]'}`}
+                        >
+                          <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${darkMode ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                        </div>
+                      </div>
+
                       <div className="border-t border-slate-100 py-1">
                         <button onClick={signOut} className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
                           <LogOut className="h-4 w-4" /> Đăng xuất
@@ -152,11 +272,11 @@ export default function Navbar() {
                 <p className="font-semibold text-slate-900">Do giới hạn thiết bị, hãy làm theo:</p>
                 <div className="flex gap-2 items-start">
                   <span className="text-xl">🍏</span>
-                  <p><strong>iOS (iPhone):</strong> Bấm nút <em>Chia sẻ</em> (dưới cùng) {'->'} Chọn <em>Thêm vào MH chính</em>.</p>
+                  <p><strong>iOS (iPhone):</strong> Bấm nút <em>Chia sẻ</em> (dưới cùng) {'-> '}Chọn <em>Thêm vào MH chính</em>.</p>
                 </div>
                 <div className="flex gap-2 items-start">
                   <span className="text-xl">🤖</span>
-                  <p><strong>Android/PC:</strong> Trình duyệt chưa hỗ trợ cài tự động, hãy bấm <em>Menu 3 chấm</em> {'->'} <em>Thêm vào Màn hình chính/Cài đặt ứng dụng</em>.</p>
+                  <p><strong>Android/PC:</strong> Trình duyệt chưa hỗ trợ cài tự động, hãy bấm <em>Menu 3 chấm</em> {'-> '} <em>Thêm vào Màn hình chính/Cài đặt ứng dụng</em>.</p>
                 </div>
               </div>
               
@@ -181,6 +301,9 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* MODAL BẢO MẬT */}
+      {showSecurityModal && <SecurityModal onClose={() => setShowSecurityModal(false)} />}
     </>
   );
 }
