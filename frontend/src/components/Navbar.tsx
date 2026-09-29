@@ -135,7 +135,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-300">
+      <header className="hidden md:block bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-300">
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2.5 gap-1">
           
           <div className="flex items-center gap-2 sm:gap-6 shrink min-w-0">

@@ -71,7 +71,7 @@ export function HealthDashboardPage() {
 
   // CÀI ĐẶT HỆ THỐNG — dùng global store để persist và áp dụng toàn trang
   const appSettings = useSettingsStore();
-  const { setHasUnread } = useNotificationStore();
+  const { hasUnread, setHasUnread } = useNotificationStore();
 
 
   const [sessionStats, setSessionStats] = useState({
@@ -318,17 +318,33 @@ export function HealthDashboardPage() {
           </button>
 
           {/* Profile Section */}
-          <div
-            onClick={() => navigate('/profile')}
-            className="flex items-center gap-3 ml-3 flex-1 justify-end cursor-pointer"
-          >
-            <div className="flex flex-col items-end">
+          <div className="flex items-center gap-3 ml-3 flex-1 justify-end">
+            <div
+              onClick={() => navigate('/profile')}
+              className="flex flex-col items-end cursor-pointer"
+            >
               <div className="font-bold text-[14px] text-slate-900 dark:text-white">Xin chào, {user?.displayName || "Bạn"}</div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">
                 {user?._id || user?.email}
               </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] flex justify-center items-center text-[#0b9665] font-bold text-base shadow-sm shrink-0">
+
+            {/* Notification Bell */}
+            <button
+              onClick={() => {
+                setHasUnread(false);
+                toast.success("Bạn không có thông báo mới nào");
+              }}
+              className="w-10 h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm shrink-0"
+            >
+              <Bell className="w-5 h-5" />
+              {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>}
+            </button>
+
+            <div
+              onClick={() => navigate('/profile')}
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] flex justify-center items-center text-[#0b9665] font-bold text-base shadow-sm shrink-0 cursor-pointer"
+            >
               {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
             </div>
           </div>
