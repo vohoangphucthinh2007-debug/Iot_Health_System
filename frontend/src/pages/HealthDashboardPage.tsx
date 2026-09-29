@@ -321,10 +321,10 @@ export function HealthDashboardPage() {
           <div className="flex items-center gap-3 ml-3 flex-1 justify-end">
             <div
               onClick={() => navigate('/profile')}
-              className="flex flex-col items-end cursor-pointer"
+              className="flex flex-col items-end cursor-pointer min-w-0"
             >
-              <div className="font-bold text-[14px] text-slate-900 dark:text-white">Xin chào, {user?.displayName || "Bạn"}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              <div className="font-bold text-[14px] text-slate-900 dark:text-white truncate w-full text-right">Xin chào, {user?.displayName || "Bạn"}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide truncate w-full text-right">
                 {user?._id || user?.email}
               </div>
             </div>
