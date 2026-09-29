@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { 
   User, Calendar, Mail, Phone, Ruler, Scale, 
-  ArrowLeft, Camera, Loader2 
+  ArrowLeft, Camera, Loader2, LogOut 
 } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import api from "@/lib/axios";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, fetchMe } = useAuthStore();
+  const { user, fetchMe, signOut } = useAuthStore();
 
   // Khởi tạo state dựa trên dữ liệu user hiện tại
   const [profileData, setProfileData] = useState({
@@ -239,12 +239,19 @@ export default function ProfilePage() {
 
           </div>
 
-          {/* Nút lưu */}
-          <div className="mt-10 flex justify-end">
+          {/* Nút thao tác */}
+          <div className="mt-10 flex flex-col-reverse sm:flex-row justify-end gap-4">
+            <button 
+              onClick={signOut}
+              className="px-8 py-3 rounded-xl font-bold transition-colors border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 flex items-center justify-center gap-2 text-[15px]"
+            >
+              <LogOut className="w-5 h-5" />
+              Đăng xuất
+            </button>
             <button 
               onClick={handleSaveProfile}
               disabled={isSavingProfile}
-              className="bg-[#2563eb] hover:bg-[#149965] text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center gap-2 text-[15px] shadow-[0_4px_15px_rgba(24,183,122,0.3)] hover:shadow-[0_6px_20px_rgba(24,183,122,0.4)]"
+              className="bg-[#2563eb] hover:bg-[#149965] text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-70 flex items-center justify-center gap-2 text-[15px] shadow-[0_4px_15px_rgba(24,183,122,0.3)] hover:shadow-[0_6px_20px_rgba(24,183,122,0.4)]"
             >
               {isSavingProfile ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
               Lưu thay đổi
