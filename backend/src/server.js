@@ -95,13 +95,28 @@ mqttClient.on("message", async (topic, message) => {
       
       console.log(`📡 Nhận MQTT - HR: ${hr}, SpO2: ${spo2}, Bước: ${steps}, Calo: ${calories}`);
 
-      // Chuyển tiếp TẤT CẢ dữ liệu nhận từ MQTT xuống Frontend qua Socket.io
+      // Chuyển tiếp dữ liệu sức khoẻ xuống Frontend qua Socket.io
       io.emit("sensorData", {
         heartRate: hr,
         spO2: spo2,
         steps: steps,
         calories: calories
       });
+
+      // Chuyển tiếp thông số thiết bị ESP32 (nếu có trong payload)
+      if (telemetryData.ram !== undefined || telemetryData.battery !== undefined ||
+          telemetryData.rssi !== undefined || telemetryData.uptime !== undefined ||
+          telemetryData.temp !== undefined) {
+        io.emit("deviceInfo", {
+          ram:      telemetryData.ram      ?? null,
+          ramTotal: telemetryData.ramTotal ?? null,
+          battery:  telemetryData.battery  ?? null,
+          rssi:     telemetryData.rssi     ?? null,
+          uptime:   telemetryData.uptime   ?? null,
+          temp:     telemetryData.temp     ?? null,
+          ip:       telemetryData.ip       ?? null,
+        });
+      }
 
       // LƯU VÀO DB NHÁP ĐỂ CUỐI NGÀY TÍNH TRUNG BÌNH
       if (hr > 0 && spo2 > 0) {

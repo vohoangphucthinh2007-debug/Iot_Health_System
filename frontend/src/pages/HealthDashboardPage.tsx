@@ -47,7 +47,7 @@ export function HealthDashboardPage() {
   const initialTab = (searchParams.get('tab') as any) || 'dashboard';
 
   // Bao gồm tất cả các tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'profile'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'device' | 'profile'>(initialTab);
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -83,6 +83,18 @@ export function HealthDashboardPage() {
     maxSpo2: 0, minSpo2: 100
   });
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [deviceInfo, setDeviceInfo] = useState<{
+    ram: number | null;
+    ramTotal: number | null;
+    battery: number | null;
+    rssi: number | null;
+    uptime: number | null;
+    temp: number | null;
+    ip: string | null;
+  }>({
+    ram: null, ramTotal: null, battery: null,
+    rssi: null, uptime: null, temp: null, ip: null
+  });
 
   // Dark mode được xử lý toàn cục trong App.tsx thông qua useSettingsStore
 
@@ -139,10 +151,23 @@ export function HealthDashboardPage() {
       }
     });
 
+    socket.on("deviceInfo", (data) => {
+      setDeviceInfo({
+        ram: data.ram ?? null,
+        ramTotal: data.ramTotal ?? null,
+        battery: data.battery ?? null,
+        rssi: data.rssi ?? null,
+        uptime: data.uptime ?? null,
+        temp: data.temp ?? null,
+        ip: data.ip ?? null,
+      });
+    });
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("sensorData");
+      socket.off("deviceInfo");
       socket.disconnect();
     };
   }, []);
@@ -258,7 +283,7 @@ export function HealthDashboardPage() {
           <FileText className="w-[18px] h-[18px]" /><span>Báo cáo</span>
         </button>
 
-        <button className="w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10 text-[14px] font-semibold transition-all cursor-pointer">
+        <button onClick={() => setActiveTab('device')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'device' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
 
@@ -270,6 +295,7 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('device')} className={`p-[10px] rounded-[11px] ${activeTab === 'device' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Cpu className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><FileText className="w-[20px] h-[20px]" /></button>
       </nav>
 
@@ -720,6 +746,99 @@ export function HealthDashboardPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* TAB 6: THIẾT BỊ */}
+        {activeTab === 'device' && (
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="mb-[25px]">
+              <h2 className="text-[24px] font-bold">Trạng thái thiết bị</h2>
+              <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Thông số kỹ thuật và kết nối của vòng tay ESP32.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* Box 1: Kết nối */}
+              <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center text-center">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 ${isConnected ? 'bg-[#e9faf3] dark:bg-[#18b77a]/20 text-[#18b77a]' : 'bg-red-50 dark:bg-red-500/10 text-red-500'}`}>
+                  {isConnected ? <Cpu className="w-8 h-8" /> : <X className="w-8 h-8" />}
+                </div>
+                <h3 className="font-bold text-lg text-slate-800 dark:text-white">PulseBand S3</h3>
+                <p className={`text-sm font-medium ${isConnected ? 'text-[#18b77a]' : 'text-red-500'}`}>
+                  {isConnected ? 'Đang kết nối' : 'Mất kết nối'}
+                </p>
+                <div className="text-xs text-slate-500 mt-2">IP: {deviceInfo.ip || 'N/A'}</div>
+              </div>
+
+              {/* Box 2: Tín hiệu WiFi & Uptime */}
+              <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-xl">
+                    <Wind className="w-6 h-6" /> {/* Dùng tạm Wind thay cho Wifi */}
+                  </div>
+                  <span className="text-sm font-bold text-slate-500">Mạng & Nguồn</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Tín hiệu WiFi (RSSI)</div>
+                    <div className="flex items-end gap-2">
+                      <span className="text-2xl font-bold text-slate-800 dark:text-white">{deviceInfo.rssi || 0}</span>
+                      <span className="text-sm font-medium text-slate-500 mb-1">dBm</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1">Thời gian hoạt động</div>
+                    <div className="text-sm font-bold text-slate-800 dark:text-white">
+                      {deviceInfo.uptime ? `${Math.floor(deviceInfo.uptime / 60)} phút ${deviceInfo.uptime % 60} giây` : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 3: RAM & Pin */}
+              <div className="bg-white dark:bg-[#1e293b] rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-purple-50 dark:bg-purple-500/10 text-purple-500 rounded-xl">
+                    <Cpu className="w-6 h-6" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-500">Phần cứng</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs text-slate-500 mb-1 flex justify-between">
+                      <span>RAM trống</span>
+                      <span>{deviceInfo.ram && deviceInfo.ramTotal ? Math.round(deviceInfo.ram / deviceInfo.ramTotal * 100) : 0}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                      <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${deviceInfo.ram && deviceInfo.ramTotal ? (deviceInfo.ram / deviceInfo.ramTotal * 100) : 0}%` }}></div>
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {deviceInfo.ram ? (deviceInfo.ram / 1024).toFixed(1) : 0} KB / {deviceInfo.ramTotal ? (deviceInfo.ramTotal / 1024).toFixed(1) : 0} KB
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs text-slate-500 mb-1">Nhiệt độ chip</div>
+                      <div className="flex items-end gap-1">
+                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.temp ? deviceInfo.temp.toFixed(1) : '--'}</span>
+                        <span className="text-xs font-medium text-slate-500 mb-1">°C</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-500 mb-1">Pin (Giả lập)</div>
+                      <div className="flex items-end gap-1">
+                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.battery || 100}</span>
+                        <span className="text-xs font-medium text-slate-500 mb-1">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
