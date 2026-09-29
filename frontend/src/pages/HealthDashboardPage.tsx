@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useNavigate } from "react-router";
 import { io } from "socket.io-client";
 import axios from "axios";
 import {
@@ -9,11 +9,13 @@ import {
 import {
   Home, HeartPulse, Wind, BarChart3,
   TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
-  User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2
+  User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Moon, Sun, Bell
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
+import { useNotificationStore } from "@/stores/useNotificationStore";
+import { toast } from "sonner";
 
 
 const dailyMockData = [
@@ -37,6 +39,7 @@ export function HealthDashboardPage() {
 
   // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialTab = (searchParams.get('tab') as any) || 'dashboard';
 
   // Bao gồm tất cả các tab
@@ -68,6 +71,7 @@ export function HealthDashboardPage() {
 
   // CÀI ĐẶT HỆ THỐNG — dùng global store để persist và áp dụng toàn trang
   const appSettings = useSettingsStore();
+  const { setHasUnread } = useNotificationStore();
 
 
   const [sessionStats, setSessionStats] = useState({
@@ -301,7 +305,34 @@ export function HealthDashboardPage() {
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 p-[20px] pb-[90px] md:pb-[60px] md:p-[30px_40px] max-w-[1500px] w-full relative">
+      <main className="flex-1 p-[20px] pb-[90px] md:pb-[60px] md:p-[30px_40px] max-w-[1500px] w-full relative overflow-x-hidden">
+
+        {/* MOBILE TOP PROFILE BAR */}
+        <div className="md:hidden flex items-center justify-between bg-white dark:bg-[#1e293b] p-3 rounded-2xl mb-4 shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => appSettings.toggleSetting('darkMode' as any)}
+            className="w-10 h-10 flex items-center justify-center bg-slate-100 dark:bg-slate-700 rounded-full text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors shrink-0"
+          >
+            {appSettings.darkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-indigo-500" />}
+          </button>
+
+          {/* Profile Section */}
+          <div
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-3 ml-3 flex-1 justify-end cursor-pointer"
+          >
+            <div className="flex flex-col items-end">
+              <div className="font-bold text-[14px] text-slate-900 dark:text-white">Xin chào, {user?.displayName || "Bạn"}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+                {user?._id || user?.email}
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#d7f8eb] to-[#b5efd9] flex justify-center items-center text-[#0b9665] font-bold text-base shadow-sm shrink-0">
+              {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
+            </div>
+          </div>
+        </div>
 
         {/* TAB 1: TỔNG QUAN */}
         {activeTab === 'dashboard' && (
@@ -692,9 +723,20 @@ export function HealthDashboardPage() {
         {/* TAB 5: BÁO CÁO */}
         {activeTab === 'reports' && (
           <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-[25px]">
-              <h2 className="text-[24px] font-bold">Báo cáo</h2>
-              <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Tổng hợp dữ liệu sức khỏe theo thời gian.</p>
+            <div className="flex justify-between items-center mb-[25px]">
+              <div>
+                <h2 className="text-[24px] font-bold">Báo cáo</h2>
+                <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Tổng hợp dữ liệu sức khỏe theo thời gian.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setHasUnread(true);
+                  toast.success("Đã gửi báo cáo mới. Vui lòng kiểm tra biểu tượng chuông trên góc phải!");
+                }}
+                className="bg-[#2563eb] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4" /> Gửi báo cáo thử nghiệm
+              </button>
             </div>
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">

@@ -9,6 +9,7 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { Eye, EyeOff, Lock, Loader2 } from "lucide-react";
+import { useNotificationStore } from "@/stores/useNotificationStore";
 
 const SecurityModal = ({ onClose }: { onClose: () => void }) => {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -105,6 +106,7 @@ const SecurityModal = ({ onClose }: { onClose: () => void }) => {
 export default function Navbar() {
   const { user, signOut } = useAuthStore();
   const { darkMode, toggleSetting } = useSettingsStore();
+  const { hasUnread, setHasUnread } = useNotificationStore();
   const [showAppGuide, setShowAppGuide] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -133,7 +135,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="hidden md:block bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-300">
+      <header className="bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-300">
         <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2.5 gap-1">
           
           <div className="flex items-center gap-2 sm:gap-6 shrink min-w-0">
@@ -144,7 +146,7 @@ export default function Navbar() {
               </span>
             </Link>
 
-            <nav className="flex items-center gap-3 sm:gap-4 md:gap-6">
+            <nav className="hidden md:flex items-center gap-3 sm:gap-4 md:gap-6">
               <Link to="/" className="text-slate-600 dark:text-slate-300 hover:text-[#2563eb] dark:hover:text-[#2563eb] flex items-center gap-1 transition-colors">
                 <Home className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Trang chủ</span>
@@ -174,9 +176,15 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Nút chuông thông báo (Dạng hình vuông bo góc) */}
-                <button className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm hover:shadow">
+                <button 
+                  onClick={() => {
+                    setHasUnread(false);
+                    toast.success("Bạn không có thông báo mới nào");
+                  }}
+                  className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm hover:shadow"
+                >
                   <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
+                  {hasUnread && <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>}
                 </button>
 
                 {/* Avatar tròn chứa chữ cái đầu & Dropdown menu */}
