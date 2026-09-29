@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { io } from "socket.io-client";
 import axios from "axios";
 import {
@@ -7,10 +7,9 @@ import {
   BarChart, Bar
 } from 'recharts';
 import {
-  Home, HeartPulse, Wind, BarChart3, Settings,
+  Home, HeartPulse, Wind, BarChart3,
   TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
-  User, Shield, Bell, Droplet, Database, Download, Moon, Languages, Cloud, Info, ChevronRight,
-  Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2
+  User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -36,16 +35,11 @@ const stepsMockData = [
   { day: "Hôm nay", steps: 0 },
 ];
 
-// Nút gạt Toggle được thiết kế lại để hỗ trợ Dark Mode
-const ToggleSwitch = ({ active, onClick }: { active: boolean; onClick?: () => void }) => (
-  <div onClick={onClick} className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 ${active ? 'bg-[#18b77a]' : 'bg-[#e2e8f0] dark:bg-slate-600'}`}>
-    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${active ? 'translate-x-5' : 'translate-x-0'}`}></div>
-  </div>
-);
+
 
 export function HealthDashboardPage() {
 
-  const navigate = useNavigate();
+
   const { user, setUser } = useAuthStore();
 
   // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
@@ -53,7 +47,7 @@ export function HealthDashboardPage() {
   const initialTab = (searchParams.get('tab') as any) || 'dashboard';
 
   // Bao gồm tất cả các tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'settings' | 'profile'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heart' | 'spo2' | 'statistics' | 'reports' | 'profile'>(initialTab);
 
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
@@ -81,7 +75,7 @@ export function HealthDashboardPage() {
 
   // CÀI ĐẶT HỆ THỐNG — dùng global store để persist và áp dụng toàn trang
   const appSettings = useSettingsStore();
-  const { toggleSetting: toggleStoreSetting } = useSettingsStore();
+
 
   const [sessionStats, setSessionStats] = useState({
     sumHr: 0, sumSpo2: 0, count: 0,
@@ -193,9 +187,7 @@ export function HealthDashboardPage() {
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toggleSetting = (key: string) => {
-    toggleStoreSetting(key as any);
-  };
+
 
   const avgHr = sessionStats.count > 0 ? Math.round(sessionStats.sumHr / sessionStats.count) : 0;
   const avgSpo2 = sessionStats.count > 0 ? Math.round(sessionStats.sumSpo2 / sessionStats.count) : 0;
@@ -270,9 +262,6 @@ export function HealthDashboardPage() {
           <Cpu className="w-[18px] h-[18px]" /><span>Thiết bị</span>
         </button>
 
-        <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-[13px] p-[12px_14px] m-[4px_0] rounded-[11px] text-[14px] font-semibold transition-all cursor-pointer ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-300 hover:text-[#18b77a] hover:bg-[#f3faf7] dark:hover:bg-[#18b77a]/10'}`}>
-          <Settings className="w-[18px] h-[18px]" /><span>Cài đặt</span>
-        </button>
       </aside>
 
       {/* ================= BOTTOM NAV (MOBILE) ================= */}
@@ -281,7 +270,7 @@ export function HealthDashboardPage() {
         <button onClick={() => setActiveTab('heart')} className={`p-[10px] rounded-[11px] ${activeTab === 'heart' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><HeartPulse className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('spo2')} className={`p-[10px] rounded-[11px] ${activeTab === 'spo2' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Wind className="w-[20px] h-[20px]" /></button>
         <button onClick={() => setActiveTab('statistics')} className={`p-[10px] rounded-[11px] ${activeTab === 'statistics' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><BarChart3 className="w-[20px] h-[20px]" /></button>
-        <button onClick={() => setActiveTab('settings')} className={`p-[10px] rounded-[11px] ${activeTab === 'settings' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><Settings className="w-[20px] h-[20px]" /></button>
+        <button onClick={() => setActiveTab('reports')} className={`p-[10px] rounded-[11px] ${activeTab === 'reports' ? 'text-[#18b77a] bg-[#e9faf3] dark:bg-[#18b77a]/10' : 'text-[#707b8b] dark:text-slate-400'}`}><FileText className="w-[20px] h-[20px]" /></button>
       </nav>
 
       {/* ================= MAIN CONTENT ================= */}
@@ -736,184 +725,6 @@ export function HealthDashboardPage() {
           </div>
         )}
 
-        {/* TAB 6: CÀI ĐẶT */}
-        {activeTab === 'settings' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="mb-[25px]">
-              <h2 className="text-[24px] font-bold">Cài đặt</h2>
-              <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Tùy chỉnh hệ thống PulseCare.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px]">
-              {/* Cột Trái */}
-              <div className="space-y-[20px]">
-                {/* Tài khoản */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <User className="w-[18px] h-[18px]" /> Tài khoản
-                  </h3>
-
-                  {/* BẤM VÀO ĐÂY SẼ CHUYỂN SANG TRANG /profile */}
-                  <div onClick={() => navigate('/profile')} className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155] cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><User className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Hồ sơ cá nhân</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">{user?.displayName || "Cập nhật thông tin"}</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="text-slate-400 w-5 h-5" />
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-2 p-3 bg-[#e9faf3] dark:bg-[#18b77a]/10 rounded-xl text-[13px] text-[#0b9665] dark:text-[#18b77a] font-medium">
-                    <Shield className="w-4 h-4 shrink-0" />
-                    Cài đặt bảo mật đã được chuyển vào menu <strong>Profile</strong> trên thanh điều hướng.
-                  </div>
-                </div>
-
-                {/* Theo dõi sức khỏe */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <HeartPulse className="w-[18px] h-[18px]" /> Theo dõi sức khỏe
-                  </h3>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><HeartPulse className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Nhịp tim</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Theo dõi liên tục</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.heartRateTracking} onClick={() => toggleSetting('heartRateTracking')} />
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Wind className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">SpO₂</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Theo dõi oxy máu</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.spo2Tracking} onClick={() => toggleSetting('spo2Tracking')} />
-                  </div>
-                </div>
-
-                {/* Giao diện */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Settings className="w-[18px] h-[18px]" /> Giao diện
-                  </h3>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Moon className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Chế độ tối</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Dark Mode</div>
-                      </div>
-                    </div>
-                    {/* CÔNG TẮC BẬT TẮT CHẾ ĐỘ TỐI */}
-                    <ToggleSwitch active={appSettings.darkMode} onClick={() => toggleSetting('darkMode')} />
-                  </div>
-                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Languages className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Ngôn ngữ</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Tiếng Việt</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="text-slate-400 w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Cột Phải */}
-              <div className="space-y-[20px]">
-                {/* Thông báo */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Bell className="w-[18px] h-[18px]" /> Thông báo
-                  </h3>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Bell className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Cảnh báo sức khỏe</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Thông báo dữ liệu bất thường</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.healthAlerts} onClick={() => toggleSetting('healthAlerts')} />
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Droplet className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Nhắc uống nước</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Nhắc theo mục tiêu</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.waterReminder} onClick={() => toggleSetting('waterReminder')} />
-                  </div>
-                </div>
-
-                {/* Quyền riêng tư */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Shield className="w-[18px] h-[18px]" /> Quyền riêng tư
-                  </h3>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Database className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Phân tích dữ liệu</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Cho phép phân tích tự động</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.dataAnalysis} onClick={() => toggleSetting('dataAnalysis')} />
-                  </div>
-                  <div className="flex items-center justify-between py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors rounded-lg px-2 -mx-2">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Download className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Tải dữ liệu</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Xuất dữ liệu cá nhân</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="text-slate-400 w-5 h-5" />
-                  </div>
-                </div>
-
-                {/* Hệ thống */}
-                <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-                  <h3 className="font-bold text-[16px] mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
-                    <Cpu className="w-[18px] h-[18px]" /> Hệ thống
-                  </h3>
-                  <div className="flex items-center justify-between py-3 border-b border-[#e8edf2] dark:border-[#334155]">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Cloud className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Sao lưu</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">Tự động sao lưu dữ liệu</div>
-                      </div>
-                    </div>
-                    <ToggleSwitch active={appSettings.autoBackup} onClick={() => toggleSetting('autoBackup')} />
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500 dark:text-slate-400"><Info className="w-[18px] h-[18px]" /></div>
-                      <div>
-                        <div className="text-[14px] font-bold text-slate-800 dark:text-slate-200">Phiên bản</div>
-                        <div className="text-[12px] text-[#8b96a5] dark:text-slate-400">PulseCare v1.0.0</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-
 
         {/* TAB 7: HỒ SƠ CÁ NHÂN (TÍCH HỢP TRONG CÙNG 1 FILE) */}
         {activeTab === 'profile' && (
@@ -921,7 +732,7 @@ export function HealthDashboardPage() {
             {/* Header / Nút quay lại */}
             <div className="flex items-center gap-4 mb-[25px]">
               <button
-                onClick={() => setActiveTab('settings')}
+                onClick={() => setActiveTab('dashboard')}
                 className="p-2 bg-white dark:bg-[#1e293b] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-colors border border-[#e8edf2] dark:border-[#334155]"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
