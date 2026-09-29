@@ -133,27 +133,27 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2 gap-1">
+      <header className="bg-white/80 dark:bg-[#0f172a]/80 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.2)] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-all duration-300">
+        <div className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-2.5 gap-1">
           
           <div className="flex items-center gap-2 sm:gap-6 shrink min-w-0">
             <Link to="/" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity shrink-0">
               <img src="/logo.jpg" alt="logo" className="h-7 sm:h-9 md:h-10 w-auto rounded-md object-contain" />
-              <span className="font-bold text-lg md:text-xl tracking-tight text-slate-900 hidden sm:block">
+              <span className="font-extrabold text-lg md:text-xl tracking-tight bg-gradient-to-r from-[#18b77a] to-blue-600 bg-clip-text text-transparent hidden sm:block">
                 CSSK
               </span>
             </Link>
 
             <nav className="flex items-center gap-3 sm:gap-4 md:gap-6">
-              <Link to="/" className="text-slate-600 hover:text-blue-600 flex items-center gap-1 transition-colors">
+              <Link to="/" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
                 <Home className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Trang chủ</span>
               </Link>
-              <Link to="/guide" className="text-slate-600 hover:text-blue-600 flex items-center gap-1 transition-colors">
+              <Link to="/guide" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
                 <BookOpen className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Hướng dẫn</span>
               </Link>
-              <Link to="/dashboard" className="text-slate-600 hover:text-blue-600 flex items-center gap-1 transition-colors">
+              <Link to="/dashboard" className="text-slate-600 dark:text-slate-300 hover:text-[#18b77a] dark:hover:text-[#18b77a] flex items-center gap-1 transition-colors">
                 <ActivitySquare className="h-4 w-4 sm:h-4 sm:w-4 shrink-0" /> 
                 <span className="hidden sm:inline text-sm font-semibold">Bảng đo</span>
               </Link>
@@ -174,9 +174,9 @@ export default function Navbar() {
             {user ? (
               <div className="flex items-center gap-2 sm:gap-3">
                 {/* Nút chuông thông báo (Dạng hình vuông bo góc) */}
-                <button className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 bg-white rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors flex items-center justify-center relative shadow-sm">
+                <button className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm hover:shadow">
                   <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                  <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
                 </button>
 
                 {/* Avatar tròn chứa chữ cái đầu & Dropdown menu */}

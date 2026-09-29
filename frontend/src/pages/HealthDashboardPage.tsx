@@ -28,13 +28,6 @@ const monthlyMockData = [
   { time: "Tuần 3", hr: 72, spo2: 98 }, { time: "Tuần này", hr: 0, spo2: 0 },
 ];
 
-const stepsMockData = [
-  { day: "T2", steps: 4200 }, { day: "T3", steps: 6500 },
-  { day: "T4", steps: 8100 }, { day: "T5", steps: 5200 },
-  { day: "T6", steps: 9400 }, { day: "T7", steps: 7200 },
-  { day: "Hôm nay", steps: 0 },
-];
-
 
 
 export function HealthDashboardPage() {
@@ -237,14 +230,22 @@ export function HealthDashboardPage() {
   };
 
   const getStepsChartData = () => {
-    // Nếu đang kết nối và có dữ liệu bước chân thật từ ESP32, chỉ hiển thị ngày hôm nay
-    if (isConnected && steps > 0) {
-      const dynamicSteps = [...stepsMockData];
-      dynamicSteps[6] = { day: "Hôm nay", steps: steps };
-      return dynamicSteps;
+    const defaultData = [
+      { day: "T2", steps: 0 },
+      { day: "T3", steps: 0 },
+      { day: "T4", steps: 0 },
+      { day: "T5", steps: 0 },
+      { day: "T6", steps: 0 },
+      { day: "T7", steps: 0 },
+      { day: "Hôm nay", steps: 0 }
+    ];
+
+    // Nếu có dữ liệu bước chân thật từ ESP32, cập nhật cho ngày "Hôm nay"
+    if (steps > 0) {
+      defaultData[6].steps = steps;
     }
-    // Khi chưa kết nối: hiển thị mock (hôm nay = 0 / '--')
-    return stepsMockData;
+
+    return defaultData;
   };
 
   const getHealthStatus = () => {
