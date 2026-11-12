@@ -131,9 +131,13 @@ export function HealthDashboardPage() {
     });
 
     socket.on("sensorData", (data) => {
-      setHeartRate(data.heartRate || 0);
-      setSpO2(data.spO2 || 0);
-      if (data.steps !== undefined) setSteps(data.steps);
+      const hr = Math.round(Number(data.heartRate ?? data.bpm ?? data.hr) || 0);
+      const spo2 = Math.round(Number(data.spO2 ?? data.spo2) || 0);
+      const stepsVal = data.steps !== undefined ? Math.round(Number(data.steps) || 0) : undefined;
+
+      setHeartRate(hr);
+      setSpO2(spo2);
+      if (stepsVal !== undefined) setSteps(stepsVal);
 
       // Đánh dấu ESP đang hoạt động và reset timeout 30s
       setIsEspActive(true);
@@ -147,31 +151,31 @@ export function HealthDashboardPage() {
       setLiveData((prev) => {
         const now = new Date();
         const timeString = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-        const newDataPoint = { time: timeString, hr: data.heartRate, spo2: data.spO2 };
+        const newDataPoint = { time: timeString, hr, spo2 };
         return [...prev.slice(-19), newDataPoint];
       });
 
-      if (data.heartRate > 0 && data.spO2 > 0) {
+      if (hr > 0 && spo2 > 0) {
         setSessionStats(prev => ({
-          sumHr: prev.sumHr + data.heartRate,
-          sumSpo2: prev.sumSpo2 + data.spO2,
+          sumHr: prev.sumHr + hr,
+          sumSpo2: prev.sumSpo2 + spo2,
           count: prev.count + 1,
-          maxHr: Math.max(prev.maxHr, data.heartRate),
-          minHr: prev.minHr === 999 ? data.heartRate : Math.min(prev.minHr, data.heartRate),
-          maxSpo2: Math.max(prev.maxSpo2, data.spO2),
-          minSpo2: Math.min(prev.minSpo2, data.spO2)
+          maxHr: Math.max(prev.maxHr, hr),
+          minHr: prev.minHr === 999 ? hr : Math.min(prev.minHr, hr),
+          maxSpo2: Math.max(prev.maxSpo2, spo2),
+          minSpo2: Math.min(prev.minSpo2, spo2)
         }));
       }
     });
 
     socket.on("deviceInfo", (data) => {
       setDeviceInfo({
-        ram: data.ram ?? null,
-        ramTotal: data.ramTotal ?? null,
-        battery: data.battery ?? null,
-        rssi: data.rssi ?? null,
-        uptime: data.uptime ?? null,
-        temp: data.temp ?? null,
+        ram: data.ram !== null && data.ram !== undefined ? Math.round(Number(data.ram)) : null,
+        ramTotal: data.ramTotal !== null && data.ramTotal !== undefined ? Math.round(Number(data.ramTotal)) : null,
+        battery: data.battery !== null && data.battery !== undefined ? Math.round(Number(data.battery)) : null,
+        rssi: data.rssi !== null && data.rssi !== undefined ? Math.round(Number(data.rssi)) : null,
+        uptime: data.uptime !== null && data.uptime !== undefined ? Math.round(Number(data.uptime)) : null,
+        temp: data.temp !== null && data.temp !== undefined ? Math.round(Number(data.temp)) : null,
         ip: data.ip ?? null,
       });
     });
@@ -198,8 +202,8 @@ export function HealthDashboardPage() {
             const timeString = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
             points.push({
               time: timeString,
-              hr: hist.bpm[i] || 0,
-              spo2: hist.spo2 && hist.spo2[i] !== undefined ? hist.spo2[i] : 0,
+              hr: Math.round(Number(hist.bpm[i]) || 0),
+              spo2: hist.spo2 && hist.spo2[i] !== undefined ? Math.round(Number(hist.spo2[i]) || 0) : 0,
             });
           }
           return points.slice(-20);
@@ -227,16 +231,24 @@ export function HealthDashboardPage() {
         const res = await axios.get(`${apiUrl}/users/today-stat`, { withCredentials: true });
         if (res.data) {
           const s = res.data;
-          if (s.steps) setSteps(s.steps);
+          if (s.steps !== undefined) setSteps(Math.round(Number(s.steps)));
           if (s.count > 0) {
+            const count     = Math.round(Number(s.count));
+            const avgHrVal  = Math.round(Number(s.avgHr));
+            const avgSpo2Val = Math.round(Number(s.avgSpo2));
+            const maxHrVal  = Math.round(Number(s.maxHr));
+            const minHrVal  = Math.round(Number(s.minHr));
+            const maxSpo2Val = Math.round(Number(s.maxSpo2));
+            const minSpo2Val = Math.round(Number(s.minSpo2));
+
             setSessionStats((prev) => ({
-              sumHr: s.avgHr * s.count,
-              sumSpo2: s.avgSpo2 * s.count,
-              count: s.count,
-              maxHr: Math.max(prev.maxHr, s.maxHr || 0),
-              minHr: s.minHr > 0 ? (prev.minHr === 999 ? s.minHr : Math.min(prev.minHr, s.minHr)) : prev.minHr,
-              maxSpo2: Math.max(prev.maxSpo2, s.maxSpo2 || 0),
-              minSpo2: s.minSpo2 > 0 ? (prev.minSpo2 === 100 ? s.minSpo2 : Math.min(prev.minSpo2, s.minSpo2)) : prev.minSpo2,
+              sumHr: avgHrVal * count,
+              sumSpo2: avgSpo2Val * count,
+              count,
+              maxHr: Math.max(prev.maxHr, maxHrVal || 0),
+              minHr: minHrVal > 0 ? (prev.minHr === 999 ? minHrVal : Math.min(prev.minHr, minHrVal)) : prev.minHr,
+              maxSpo2: Math.max(prev.maxSpo2, maxSpo2Val || 0),
+              minSpo2: minSpo2Val > 0 ? (prev.minSpo2 === 100 ? minSpo2Val : Math.min(prev.minSpo2, minSpo2Val)) : prev.minSpo2,
             }));
           }
         }
@@ -291,11 +303,11 @@ export function HealthDashboardPage() {
 
   const avgHr = sessionStats.count > 0 ? Math.round(sessionStats.sumHr / sessionStats.count) : 0;
   const avgSpo2 = sessionStats.count > 0 ? Math.round(sessionStats.sumSpo2 / sessionStats.count) : 0;
-  const maxHrDisp = sessionStats.count === 0 ? '--' : sessionStats.maxHr;
-  const minHrDisp = sessionStats.count === 0 ? '--' : sessionStats.minHr;
-  const maxSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.maxSpo2;
-  const minSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.minSpo2;
-  const distanceKm = steps > 0 ? (steps * 0.0007).toFixed(2) : '--';
+  const maxHrDisp = sessionStats.count === 0 ? '--' : Math.round(sessionStats.maxHr);
+  const minHrDisp = sessionStats.count === 0 ? '--' : Math.round(sessionStats.minHr);
+  const maxSpo2Disp = sessionStats.count === 0 ? '--' : Math.round(sessionStats.maxSpo2);
+  const minSpo2Disp = sessionStats.count === 0 ? '--' : Math.round(sessionStats.minSpo2);
+  const distanceKm = steps > 0 ? Math.round(steps * 0.0007) : '--';
 
   const getStepsChartData = () => {
     // Chỉ hiển thị dữ liệu thực từ ESP32, không có mock data
@@ -470,7 +482,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] dark:text-slate-400 text-[13px] font-medium">Nhịp tim</div>
-                    <div className="text-[30px] font-bold mt-[4px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] font-normal text-[#8b96a5] dark:text-slate-400">BPM</small></div>
+                    <div className="text-[30px] font-bold mt-[4px]">{heartRate > 0 ? Math.round(heartRate) : '--'} <small className="text-[14px] font-normal text-[#8b96a5] dark:text-slate-400">BPM</small></div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#2563eb] bg-[#eff6ff] dark:bg-[#2563eb]/10">
                     <HeartPulse className={`w-[24px] h-[24px] ${heartRate > 0 ? 'animate-pulse' : ''}`} />
@@ -482,7 +494,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] dark:text-slate-400 text-[13px] font-medium">SpO₂</div>
-                    <div className="text-[30px] font-bold mt-[4px]">{spO2 > 0 ? spO2 : '--'}<small className="text-[14px] font-normal text-[#8b96a5] dark:text-slate-400">%</small></div>
+                    <div className="text-[30px] font-bold mt-[4px]">{spO2 > 0 ? Math.round(spO2) : '--'}<small className="text-[14px] font-normal text-[#8b96a5] dark:text-slate-400">%</small></div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#4385f5] bg-[#edf4ff] dark:bg-[#4385f5]/10">
                     <Wind className="w-[24px] h-[24px]" />
@@ -494,7 +506,7 @@ export function HealthDashboardPage() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[#8b96a5] dark:text-slate-400 text-[13px] font-medium">Bước chân</div>
-                    <div className="text-[30px] font-bold mt-[4px]">{steps > 0 ? steps.toLocaleString() : '--'}</div>
+                    <div className="text-[30px] font-bold mt-[4px]">{steps > 0 ? Math.round(steps).toLocaleString() : '--'}</div>
                   </div>
                   <div className="w-[48px] h-[48px] rounded-[14px] flex justify-center items-center text-[#f5a33b] bg-[#fff5e8] dark:bg-[#f5a33b]/10">
                     <Footprints className="w-[24px] h-[24px]" />
@@ -522,7 +534,7 @@ export function HealthDashboardPage() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#f1f5f9'} />
                       <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
                       <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                      <Tooltip cursor={{ fill: appSettings.darkMode ? '#334155' : '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }} />
+                      <Tooltip cursor={{ fill: appSettings.darkMode ? '#334155' : '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }} formatter={(value: any) => [`${Math.round(Number(value) || 0).toLocaleString()} bước`, 'Số bước']} />
                       <Bar dataKey="steps" name="Số bước" fill="url(#colorSteps)" radius={[6, 6, 0, 0]} barSize={60} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -549,7 +561,7 @@ export function HealthDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] mb-[20px]">
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">Nhịp tim hiện tại</div>
-                <div className="text-[42px] font-bold my-[15px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{heartRate > 0 ? Math.round(heartRate) : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
                 {heartRate > 0 ? (
                   <span className="text-[#2563eb] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#2563eb] animate-pulse"></span> Trong giới hạn bình thường</span>
                 ) : (
@@ -562,7 +574,7 @@ export function HealthDashboardPage() {
 
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">Nhịp tim trung bình</div>
-                <div className="text-[42px] font-bold my-[15px]">{avgHr > 0 ? avgHr : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{avgHr > 0 ? Math.round(avgHr) : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
                 <p className="text-[#8b96a5] dark:text-slate-400 text-[13px]">Tính toán dựa trên toàn bộ dữ liệu phiên đo hiện tại.</p>
               </div>
             </div>
@@ -577,7 +589,7 @@ export function HealthDashboardPage() {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                         <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
                         <YAxis stroke="#2563eb" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} formatter={(value: any) => [`${Math.round(Number(value) || 0)} BPM`, 'Nhịp tim']} />
                         <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -631,7 +643,7 @@ export function HealthDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[20px] mb-[20px]">
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">SpO₂ hiện tại</div>
-                <div className="text-[42px] font-bold my-[15px]">{spO2 > 0 ? spO2 : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">%</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{spO2 > 0 ? Math.round(spO2) : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">%</small></div>
                 {spO2 > 0 ? (
                   <span className="text-[#4385f5] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#4385f5]"></span> {spO2 >= 95 ? 'Chỉ số an toàn' : 'SpO₂ đang thấp - cần chú ý!'}</span>
                 ) : (
@@ -644,7 +656,7 @@ export function HealthDashboardPage() {
 
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">SpO₂ trung bình</div>
-                <div className="text-[42px] font-bold my-[15px]">{avgSpo2 > 0 ? avgSpo2 : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">%</small></div>
+                <div className="text-[42px] font-bold my-[15px]">{avgSpo2 > 0 ? Math.round(avgSpo2) : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">%</small></div>
                 <p className="text-[#8b96a5] dark:text-slate-400 text-[13px]">Chỉ số bão hòa oxy lý tưởng dao động từ 95% đến 100%.</p>
               </div>
             </div>
@@ -659,7 +671,7 @@ export function HealthDashboardPage() {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                         <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
                         <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} formatter={(value: any) => [`${Math.round(Number(value) || 0)}%`, 'SpO₂']} />
                         <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -764,7 +776,7 @@ export function HealthDashboardPage() {
                       <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
                       <YAxis yAxisId="left" stroke="#2563eb" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} formatter={(value: any, name: any) => [`${Math.round(Number(value) || 0)} ${name === 'Nhịp tim' ? 'BPM' : '%'}`, name]} />
                       <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
                       <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                       <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
@@ -916,7 +928,7 @@ export function HealthDashboardPage() {
                       <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${deviceInfo.ram && deviceInfo.ramTotal ? (deviceInfo.ram / deviceInfo.ramTotal * 100) : 0}%` }}></div>
                     </div>
                     <div className="text-xs text-slate-400 mt-1">
-                      {deviceInfo.ram ? (deviceInfo.ram / 1024).toFixed(1) : 0} KB / {deviceInfo.ramTotal ? (deviceInfo.ramTotal / 1024).toFixed(1) : 0} KB
+                      {deviceInfo.ram ? Math.round(deviceInfo.ram / 1024) : 0} KB / {deviceInfo.ramTotal ? Math.round(deviceInfo.ramTotal / 1024) : 0} KB
                     </div>
                   </div>
 
@@ -924,14 +936,14 @@ export function HealthDashboardPage() {
                     <div>
                       <div className="text-xs text-slate-500 mb-1">Nhiệt độ chip</div>
                       <div className="flex items-end gap-1">
-                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.temp ? deviceInfo.temp.toFixed(1) : '--'}</span>
+                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.temp ? Math.round(deviceInfo.temp) : '--'}</span>
                         <span className="text-xs font-medium text-slate-500 mb-1">°C</span>
                       </div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-500 mb-1">Pin</div>
                       <div className="flex items-end gap-1">
-                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.battery ?? '--'}</span>
+                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.battery !== null ? Math.round(deviceInfo.battery) : '--'}</span>
                         <span className="text-xs font-medium text-slate-500 mb-1">{deviceInfo.battery !== null ? '%' : ''}</span>
                       </div>
                     </div>
@@ -1178,21 +1190,21 @@ export function HealthDashboardPage() {
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Nhịp tim TB</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgHr} <span className="text-xs font-normal text-slate-500">BPM</span></p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{Math.round(selectedReport.avgHr || 0)} <span className="text-xs font-normal text-slate-500">BPM</span></p>
                     {(selectedReport.minHr > 0 || selectedReport.maxHr > 0) && (
-                      <p className="text-[11px] text-slate-400 mt-0.5">↓{selectedReport.minHr} / ↑{selectedReport.maxHr}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">↓{Math.round(selectedReport.minHr || 0)} / ↑{Math.round(selectedReport.maxHr || 0)}</p>
                     )}
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">SpO₂ TB</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgSpo2}<span className="text-xs font-normal text-slate-500">%</span></p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{Math.round(selectedReport.avgSpo2 || 0)}<span className="text-xs font-normal text-slate-500">%</span></p>
                     {(selectedReport.minSpo2 > 0 || selectedReport.maxSpo2 > 0) && (
-                      <p className="text-[11px] text-slate-400 mt-0.5">↓{selectedReport.minSpo2}% / ↑{selectedReport.maxSpo2}%</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">↓{Math.round(selectedReport.minSpo2 || 0)}% / ↑{Math.round(selectedReport.maxSpo2 || 0)}%</p>
                     )}
                   </div>
                   <div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Tổng bước chân</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.steps?.toLocaleString() || 0}</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{Math.round(selectedReport.steps || 0).toLocaleString()}</p>
                   </div>
                 </div>
               </div>

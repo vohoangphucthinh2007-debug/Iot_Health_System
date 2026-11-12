@@ -164,10 +164,10 @@ mqttClient.on("message", async (topic, message) => {
     try {
       const d = JSON.parse(message.toString());
 
-      // ESP32 gửi "bpm", "spo2", "steps"
-      const hr = d.bpm || 0;
-      const spo2 = d.spo2 || 0;
-      const steps = d.steps || 0;
+      // ESP32 gửi "bpm", "spo2", "steps" — đảm bảo chuyển thành số nguyên
+      const hr    = Math.round(Number(d.bpm || d.heartRate || d.hr) || 0);
+      const spo2  = Math.round(Number(d.spo2 || d.spO2) || 0);
+      const steps = Math.round(Number(d.steps) || 0);
 
       // Tìm đúng user sở hữu thiết bị này
       const targetUser = await findUserByTopic(topic);
@@ -177,20 +177,20 @@ mqttClient.on("message", async (topic, message) => {
 
       const userRoom = `user_${targetUser._id}`;
 
-      // Chuyển tiếp dữ liệu sức khoẻ RIÊNG cho user này qua Socket.io
+      // Chuyển tiếp dữ liệu sức khoẻ RIÊNG cho user này qua Socket.io (toàn bộ là số nguyên)
       io.to(userRoom).emit("sensorData", { heartRate: hr, spO2: spo2, steps });
 
-      // Chuyển tiếp thông số thiết bị ESP32 (nếu có)
+      // Chuyển tiếp thông số thiết bị ESP32 (làm tròn số nguyên)
       if (d.rssi !== undefined || d.heap !== undefined || d.battery !== undefined ||
         d.uptime !== undefined || d.ip !== undefined || d.ram !== undefined) {
         io.to(userRoom).emit("deviceInfo", {
-          ram: d.heap ?? d.ram ?? null,
-          ramTotal: d.ramTotal ?? null,
-          battery: d.battery ?? null,
-          rssi: d.rssi ?? null,
-          uptime: d.uptime ?? null,
-          temp: d.temp ?? null,
-          ip: d.ip ?? null,
+          ram:      d.heap !== undefined ? Math.round(d.heap) : (d.ram !== undefined ? Math.round(d.ram) : null),
+          ramTotal: d.ramTotal !== undefined ? Math.round(d.ramTotal) : null,
+          battery:  d.battery !== undefined ? Math.round(d.battery) : null,
+          rssi:     d.rssi !== undefined ? Math.round(d.rssi) : null,
+          uptime:   d.uptime !== undefined ? Math.round(d.uptime) : null,
+          temp:     d.temp !== undefined ? Math.round(d.temp) : null,
+          ip:       d.ip ?? null,
         });
       }
 
@@ -235,6 +235,12 @@ mqttClient.on("message", async (topic, message) => {
   if (topic.endsWith("/history")) {
     try {
       const hist = JSON.parse(message.toString());
+      if (Array.isArray(hist.bpm)) {
+        hist.bpm = hist.bpm.map(v => Math.round(Number(v) || 0));
+      }
+      if (Array.isArray(hist.spo2)) {
+        hist.spo2 = hist.spo2.map(v => Math.round(Number(v) || 0));
+      }
       const targetUser = await findUserByTopic(topic);
       if (targetUser) {
         io.to(`user_${targetUser._id}`).emit("sensorHistory", hist);
@@ -345,19 +351,19 @@ async function processDailyReportForStats(stats, dateStr, reportDisplayDate) {
       console.error(`⚠️ Lỗi gọi Gemini AI cho user ${user.username}:`, aiErr.message);
     }
 
-    // Tự động tạo và lưu báo cáo chính thức vào ô dữ liệu riêng của user này
+    // Tự động tạo và lưu báo cáo chính thức vào ô dữ liệu riêng của user này (toàn bộ chỉ số là số nguyên)
     await Report.create({
       userId:  stat.userId,
       date:    reportDisplayDate,
       type:    "Báo cáo hàng ngày",
       status:  "Hoàn thành",
-      avgHr,
-      avgSpo2,
-      maxHr:   stat.maxHr,
-      minHr:   stat.minHr === 999 ? 0 : stat.minHr,
-      maxSpo2: stat.maxSpo2,
-      minSpo2: stat.minSpo2 === 100 ? 0 : stat.minSpo2,
-      steps:   stat.steps || 0,
+      avgHr:   Math.round(avgHr),
+      avgSpo2: Math.round(avgSpo2),
+      maxHr:   Math.round(stat.maxHr || 0),
+      minHr:   Math.round(stat.minHr === 999 ? 0 : (stat.minHr || 0)),
+      maxSpo2: Math.round(stat.maxSpo2 || 0),
+      minSpo2: Math.round(stat.minSpo2 === 100 ? 0 : (stat.minSpo2 || 0)),
+      steps:   Math.round(stat.steps || 0),
       aiAnalysis
     });
     console.log(`🎉 Đã tự động tạo báo cáo ngày ${reportDisplayDate} cho user [${user.displayName || user.username}]`);

@@ -130,13 +130,13 @@ export const getReports = async (req, res) => {
       date:    r.date,
       type:    r.type,
       status:  r.status,
-      avgHr:   r.avgHr,
-      avgSpo2: r.avgSpo2,
-      maxHr:   r.maxHr,
-      minHr:   r.minHr,
-      maxSpo2: r.maxSpo2,
-      minSpo2: r.minSpo2,
-      steps:   r.steps,
+      avgHr:   Math.round(r.avgHr || 0),
+      avgSpo2: Math.round(r.avgSpo2 || 0),
+      maxHr:   Math.round(r.maxHr || 0),
+      minHr:   Math.round(r.minHr || 0),
+      maxSpo2: Math.round(r.maxSpo2 || 0),
+      minSpo2: Math.round(r.minSpo2 || 0),
+      steps:   Math.round(r.steps || 0),
       // Nhận xét AI cá nhân hóa
       aiAnalysis: r.aiAnalysis || null
     }));
@@ -148,7 +148,7 @@ export const getReports = async (req, res) => {
   }
 };
 
-// GET /api/users/today-stat — Lấy thống kê tích lũy trong ngày từ Database
+// GET /api/users/today-stat — Lấy thống kê tích lũy trong ngày từ Database (số nguyên)
 export const getTodayStat = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -163,14 +163,14 @@ export const getTodayStat = async (req, res) => {
     const avgSpo2 = stat.count > 0 ? Math.round(stat.totalSpo2 / stat.count) : 0;
 
     return res.status(200).json({
-      avgHr,
-      avgSpo2,
-      maxHr: stat.maxHr || 0,
-      minHr: stat.minHr === 999 ? 0 : stat.minHr,
-      maxSpo2: stat.maxSpo2 || 0,
-      minSpo2: stat.minSpo2 === 100 ? 0 : stat.minSpo2,
-      steps: stat.steps || 0,
-      count: stat.count || 0
+      avgHr:   Math.round(avgHr),
+      avgSpo2: Math.round(avgSpo2),
+      maxHr:   Math.round(stat.maxHr || 0),
+      minHr:   Math.round(stat.minHr === 999 ? 0 : (stat.minHr || 0)),
+      maxSpo2: Math.round(stat.maxSpo2 || 0),
+      minSpo2: Math.round(stat.minSpo2 === 100 ? 0 : (stat.minSpo2 || 0)),
+      steps:   Math.round(stat.steps || 0),
+      count:   Math.round(stat.count || 0)
     });
   } catch (error) {
     console.error("Lỗi getTodayStat:", error);
