@@ -2,53 +2,61 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import axios from "axios";
 
 const api = axios.create({
-  // Tự động ăn theo file .env khi ở nhà, hoặc tự đổi thành "/api" khi đẩy lên Vercel/Render
   baseURL: import.meta.env.VITE_API_URL || "/api",
-  
-  // Khai báo một lần ở đây là nó sẽ tự áp dụng cho toàn bộ các request ở dưới
   withCredentials: true,
 });
 
-// gắn access token vào req header
+// Gắn access token vào request header
 api.interceptors.request.use((config) => {
   const { accessToken } = useAuthStore.getState();
 
-  if (accessToken) {
+  if (accessToken && accessToken !== "null" && accessToken !== "undefined") {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
 
   return config;
 });
 
-// tự động gọi refresh api khi access token hết hạn
+// Tự động gọi refresh api khi access token hết hạn
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Nếu server có gửi token mới qua header x-new-access-token
+    const newToken = res.headers["x-new-access-token"];
+    if (newToken) {
+      useAuthStore.getState().setAccessToken(newToken);
+    }
+    return res;
+  },
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) return Promise.reject(error);
 
-    // những api không cần check
+    const url = originalRequest.url || "";
+
+    // Những api auth không cần retry refresh
     if (
-      originalRequest.url.includes("/auth/signin") ||
-      originalRequest.url.includes("/auth/signup") ||
-      originalRequest.url.includes("/auth/refresh")
+      url.includes("auth/signin") ||
+      url.includes("auth/signup") ||
+      url.includes("auth/refresh") ||
+      url.includes("check-duplicate")
     ) {
       return Promise.reject(error);
     }
 
     originalRequest._retryCount = originalRequest._retryCount || 0;
 
-    if (error.response?.status === 403 && originalRequest._retryCount < 4) {
+    if ((error.response?.status === 401 || error.response?.status === 403) && originalRequest._retryCount < 2) {
       originalRequest._retryCount += 1;
 
       try {
-        // Đã xóa phần truyền sai vị trí, chỉ gọi đúng endpoint
-        const res = await api.post("/auth/refresh");
+        const res = await api.post("auth/refresh");
         const newAccessToken = res.data.accessToken;
 
-        useAuthStore.getState().setAccessToken(newAccessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
+        if (newAccessToken) {
+          useAuthStore.getState().setAccessToken(newAccessToken);
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        }
       } catch (refreshError) {
         useAuthStore.getState().clearState();
         return Promise.reject(refreshError);

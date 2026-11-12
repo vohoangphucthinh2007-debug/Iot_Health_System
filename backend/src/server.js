@@ -453,10 +453,17 @@ cron.schedule("59 23 * * *", async () => {
 // ==========================================
 // ROUTES
 // ==========================================
-app.use("/api/auth", authRoute);
+app.get("/", (req, res) => {
+  res.json({ status: "ok", message: "IoT Health System Backend is live!" });
+});
 
-app.use(protectedRoute);
-app.use("/api/users", userRoute);
+// Cho phép cả /api/auth và /auth để frontend cấu hình URL kiểu nào cũng chạy
+app.use("/api/auth", authRoute);
+app.use("/auth", authRoute);
+
+// Cho phép cả /api/users và /users (chỉ bảo vệ các routes này, không chặn toàn server)
+app.use("/api/users", protectedRoute, userRoute);
+app.use("/users", protectedRoute, userRoute);
 
 // Chạy server
 connectDB().then(() => {

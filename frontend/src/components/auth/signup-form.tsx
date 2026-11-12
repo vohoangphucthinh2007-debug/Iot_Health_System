@@ -144,7 +144,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
     if (val.length >= 3) {
       try {
         // Gọi API kiểm tra nhanh
-        await axios.get(`/api/auth/check-duplicate?username=${val}`);
+        await axios.get(`auth/check-duplicate?username=${val}`);
       } catch (err: any) {
         if (err?.response?.status === 409) {
           toast.error(err.response.data.message); // Bắn thông báo ngay lập tức
@@ -187,7 +187,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
       if (val && val.includes("@")) {
         try {
           // Gọi API kiểm tra email trùng lặp
-          await axios.get(`/api/auth/check-duplicate?email=${val}`);
+          await axios.get(`auth/check-duplicate?email=${val}`);
         } catch (err: any) {
           if (err?.response?.status === 409) {
             toast.error(err.response.data.message); // Báo lỗi ngay lập tức nếu email đã tồn tại

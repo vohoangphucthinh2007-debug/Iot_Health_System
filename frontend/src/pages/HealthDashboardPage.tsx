@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { io } from "socket.io-client";
-import axios from "axios";
+import api from "@/lib/axios";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar
@@ -25,17 +25,7 @@ import { toast } from "sonner";
 export function HealthDashboardPage() {
 
 
-  const { user, setUser, accessToken, setAccessToken } = useAuthStore();
-
-  // Interceptor: tự động cập nhật accessToken mới nếu backend cấp lại qua header
-  useEffect(() => {
-    const interceptorId = axios.interceptors.response.use((response) => {
-      const newToken = response.headers["x-new-access-token"];
-      if (newToken) setAccessToken(newToken);
-      return response;
-    });
-    return () => axios.interceptors.response.eject(interceptorId);
-  }, [setAccessToken]);
+  const { user, setUser } = useAuthStore();
 
   // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
   const [searchParams] = useSearchParams();
@@ -120,8 +110,8 @@ export function HealthDashboardPage() {
     setSteps(0);
     setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minHr: 999, maxSpo2: 0, minSpo2: 100 });
 
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-    const socketUrl = apiUrl.replace('/api', '');
+    const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+    const socketUrl = rawApiUrl.replace(/\/api\/?$/, '');
     const uid = user?._id || '';
     const socket = io(socketUrl, {
       query: { userId: uid }
@@ -237,11 +227,7 @@ export function HealthDashboardPage() {
   useEffect(() => {
     const fetchTodayStat = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-        const res = await axios.get(`${apiUrl}/users/today-stat`, {
-          withCredentials: true,
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
+        const res = await api.get("users/today-stat");
         if (res.data) {
           const s = res.data;
           if (s.steps !== undefined) setSteps(Math.round(Number(s.steps)));
@@ -269,19 +255,15 @@ export function HealthDashboardPage() {
         console.error("Lỗi lấy dữ liệu tích lũy hôm nay từ database:", err);
       }
     };
-    fetchTodayStat();
+    if (user?._id) fetchTodayStat();
   }, [user?._id]);
 
   useEffect(() => {
-    if (activeTab === 'reports') {
+    if (activeTab === 'reports' && user?._id) {
       const fetchReports = async () => {
         setIsLoadingReports(true);
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-          const res = await axios.get(`${apiUrl}/users/reports`, {
-            withCredentials: true,
-            headers: { Authorization: `Bearer ${accessToken}` }
-          });
+          const res = await api.get("users/reports");
           setReports(res.data);
         } catch (error) {
           console.error("Lỗi lấy báo cáo từ server:", error);
@@ -296,11 +278,7 @@ export function HealthDashboardPage() {
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-      const res = await axios.put(`${apiUrl}/users/profile`, profileData, {
-        withCredentials: true,
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
+      const res = await api.put("users/profile", profileData);
       setUser(res.data);
       alert("Cập nhật hồ sơ thành công!");
     } catch (error) {
