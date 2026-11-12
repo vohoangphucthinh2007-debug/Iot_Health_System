@@ -25,7 +25,7 @@ import { toast } from "sonner";
 export function HealthDashboardPage() {
 
 
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, accessToken } = useAuthStore();
 
   // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
   const [searchParams] = useSearchParams();
@@ -228,7 +228,10 @@ export function HealthDashboardPage() {
     const fetchTodayStat = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-        const res = await axios.get(`${apiUrl}/users/today-stat`, { withCredentials: true });
+        const res = await axios.get(`${apiUrl}/users/today-stat`, {
+          withCredentials: true,
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
         if (res.data) {
           const s = res.data;
           if (s.steps !== undefined) setSteps(Math.round(Number(s.steps)));
@@ -265,7 +268,10 @@ export function HealthDashboardPage() {
         setIsLoadingReports(true);
         try {
           const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
-          const res = await axios.get(`${apiUrl}/users/reports`, { withCredentials: true });
+          const res = await axios.get(`${apiUrl}/users/reports`, {
+            withCredentials: true,
+            headers: { Authorization: `Bearer ${accessToken}` }
+          });
           setReports(res.data);
         } catch (error) {
           console.error("Lỗi lấy báo cáo từ server:", error);
@@ -282,7 +288,8 @@ export function HealthDashboardPage() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
       const res = await axios.put(`${apiUrl}/users/profile`, profileData, {
-        withCredentials: true
+        withCredentials: true,
+        headers: { Authorization: `Bearer ${accessToken}` }
       });
       setUser(res.data);
       alert("Cập nhật hồ sơ thành công!");

@@ -34,12 +34,20 @@ const allowedOrigins = [
   "https://iot-health-system-red.vercel.app"
 ];
 
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (origin.startsWith("http://192.168.")) return true;
+  if (origin.endsWith(".vercel.app")) return true;
+  return false;
+}
+
 // Middlewares
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.startsWith("http://192.168.")) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Bị chặn bởi CORS"));
@@ -52,7 +60,7 @@ app.use(cors({
 const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.startsWith("http://192.168.")) {
+      if (isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Bị chặn bởi CORS"));
