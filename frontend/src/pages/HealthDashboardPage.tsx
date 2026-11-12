@@ -25,7 +25,17 @@ import { toast } from "sonner";
 export function HealthDashboardPage() {
 
 
-  const { user, setUser, accessToken } = useAuthStore();
+  const { user, setUser, accessToken, setAccessToken } = useAuthStore();
+
+  // Interceptor: tự động cập nhật accessToken mới nếu backend cấp lại qua header
+  useEffect(() => {
+    const interceptorId = axios.interceptors.response.use((response) => {
+      const newToken = response.headers["x-new-access-token"];
+      if (newToken) setAccessToken(newToken);
+      return response;
+    });
+    return () => axios.interceptors.response.eject(interceptorId);
+  }, [setAccessToken]);
 
   // Đọc query param ?tab= để tự động mở đúng tab khi điều hướng từ Navbar
   const [searchParams] = useSearchParams();
