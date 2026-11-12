@@ -75,7 +75,7 @@ export function SigninForm({ className, ...props }: React.ComponentProps<"div">)
                 <Input
                   type="text"
                   id="username"
-                  placeholder="moji"
+                  placeholder="Nhập tên đăng nhập"
                   {...register("username")}
                 />
                 {errors.username && (

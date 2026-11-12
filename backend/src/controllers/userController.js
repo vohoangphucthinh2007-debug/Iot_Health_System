@@ -124,14 +124,19 @@ export const getReports = async (req, res) => {
     const reports = await Report.find({ userId }).sort({ createdAt: -1 });
 
     const formattedReports = reports.map(r => ({
-      id: r._id,
-      date: r.date,
-      type: r.type,
-      status: r.status,
-      avgHr: r.avgHr,
+      id:      r._id,
+      date:    r.date,
+      type:    r.type,
+      status:  r.status,
+      avgHr:   r.avgHr,
       avgSpo2: r.avgSpo2,
-      steps: r.steps,
-      calo: r.calo
+      maxHr:   r.maxHr,
+      minHr:   r.minHr,
+      maxSpo2: r.maxSpo2,
+      minSpo2: r.minSpo2,
+      steps:   r.steps,
+      // Nhận xét AI cá nhân hóa
+      aiAnalysis: r.aiAnalysis || null
     }));
 
     return res.status(200).json(formattedReports);

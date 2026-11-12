@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   Home, HeartPulse, Wind, BarChart3,
-  TrendingUp, Cpu, RefreshCw, Footprints, Flame, Route, Award, TrendingDown, FileText, X,
+  TrendingUp, Cpu, RefreshCw, Footprints, Route, TrendingDown, FileText, X,
   User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Moon, Sun, Bell
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
@@ -18,17 +18,7 @@ import { useNotificationStore } from "@/stores/useNotificationStore";
 import { toast } from "sonner";
 
 
-const dailyMockData = [
-  { time: "T2", hr: 72, spo2: 98 }, { time: "T3", hr: 75, spo2: 97 },
-  { time: "T4", hr: 71, spo2: 99 }, { time: "T5", hr: 78, spo2: 96 },
-  { time: "T6", hr: 74, spo2: 98 }, { time: "T7", hr: 80, spo2: 97 },
-  { time: "Hôm nay", hr: 0, spo2: 0 },
-];
 
-const monthlyMockData = [
-  { time: "Tuần 1", hr: 74, spo2: 98 }, { time: "Tuần 2", hr: 75, spo2: 97 },
-  { time: "Tuần 3", hr: 72, spo2: 98 }, { time: "Tuần này", hr: 0, spo2: 0 },
-];
 
 
 
@@ -48,9 +38,7 @@ export function HealthDashboardPage() {
   const [heartRate, setHeartRate] = useState<number>(0);
   const [spO2, setSpO2] = useState<number>(0);
   const [steps, setSteps] = useState<number>(0);
-  const [calories, setCalories] = useState<number>(0);
   const [liveData, setLiveData] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<'live' | 'daily' | 'monthly'>('live');
 
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
@@ -80,6 +68,8 @@ export function HealthDashboardPage() {
     maxSpo2: 0, minSpo2: 100
   });
   const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [isEspActive, setIsEspActive] = useState<boolean>(false); // true khi ESP đang gửi dữ liệu thực
+  const espTimeoutRef = useState<ReturnType<typeof setTimeout> | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<{
     ram: number | null;
     ramTotal: number | null;
@@ -118,19 +108,30 @@ export function HealthDashboardPage() {
     socket.on("connect", () => setIsConnected(true));
     socket.on("disconnect", () => {
       setIsConnected(false);
+      setIsEspActive(false);
       setHeartRate(0);
       setSpO2(0);
+      setSteps(0);
+      setDeviceInfo({ ram: null, ramTotal: null, battery: null, rssi: null, uptime: null, temp: null, ip: null });
     });
 
     socket.on("sensorData", (data) => {
       setHeartRate(data.heartRate || 0);
       setSpO2(data.spO2 || 0);
       if (data.steps !== undefined) setSteps(data.steps);
-      if (data.calories !== undefined) setCalories(data.calories);
+
+      // Đánh dấu ESP đang hoạt động và reset timeout 30s
+      setIsEspActive(true);
+      if (espTimeoutRef[0]) clearTimeout(espTimeoutRef[0]);
+      espTimeoutRef[0] = setTimeout(() => {
+        setIsEspActive(false);
+        setHeartRate(0);
+        setSpO2(0);
+      }, 30000); // 30 giây không nhận dữ liệu → coi là mất kết nối ESP
 
       setLiveData((prev) => {
         const now = new Date();
-        const timeString = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        const timeString = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         const newDataPoint = { time: timeString, hr: data.heartRate, spo2: data.spO2 };
         return [...prev.slice(-19), newDataPoint];
       });
@@ -160,12 +161,23 @@ export function HealthDashboardPage() {
       });
     });
 
+    // Nhận cảnh báo ngã từ ESP32 (qua fall/alert topic)
+    socket.on("fallAlert", (data) => {
+      console.warn("🚨 Cảnh báo ngã:", data);
+      toast.error(`⚠️ Phát hiện ngã! Trạng thái: ${data.state}${data.reason ? ` — ${data.reason}` : ''}`, {
+        duration: 8000,
+      });
+      setHasUnread(true);
+    });
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("sensorData");
       socket.off("deviceInfo");
+      socket.off("fallAlert");
       socket.disconnect();
+      if (espTimeoutRef[0]) clearTimeout(espTimeoutRef[0]);
     };
   }, []);
 
@@ -219,37 +231,12 @@ export function HealthDashboardPage() {
   const minSpo2Disp = sessionStats.count === 0 ? '--' : sessionStats.minSpo2;
   const distanceKm = steps > 0 ? (steps * 0.0007).toFixed(2) : '--';
 
-  const getChartData = () => {
-    if (viewMode === 'daily') {
-      const dynamicDaily = [...dailyMockData];
-      if (avgHr > 0) dynamicDaily[6] = { time: "Hôm nay", hr: avgHr, spo2: avgSpo2 };
-      return dynamicDaily;
-    }
-    if (viewMode === 'monthly') {
-      const dynamicMonthly = [...monthlyMockData];
-      if (avgHr > 0) dynamicMonthly[3] = { time: "Tuần này", hr: avgHr, spo2: avgSpo2 };
-      return dynamicMonthly;
-    }
-    return liveData;
-  };
-
   const getStepsChartData = () => {
-    const defaultData = [
-      { day: "T2", steps: 0 },
-      { day: "T3", steps: 0 },
-      { day: "T4", steps: 0 },
-      { day: "T5", steps: 0 },
-      { day: "T6", steps: 0 },
-      { day: "T7", steps: 0 },
-      { day: "Hôm nay", steps: 0 }
-    ];
-
-    // Nếu có dữ liệu bước chân thật từ ESP32, cập nhật cho ngày "Hôm nay"
+    // Chỉ hiển thị dữ liệu thực từ ESP32, không có mock data
     if (steps > 0) {
-      defaultData[6].steps = steps;
+      return [{ day: "Hôm nay", steps }];
     }
-
-    return defaultData;
+    return [];
   };
 
   const getHealthStatus = () => {
@@ -387,13 +374,13 @@ export function HealthDashboardPage() {
                     <div className="text-[#f45d69] text-[12px] font-semibold flex items-center bg-[#fff0f2] dark:bg-[#f45d69]/10 px-3 py-1.5 rounded-full">
                       <span className="w-[7px] h-[7px] bg-[#f45d69] rounded-full mr-[6px]"></span> Mất kết nối
                     </div>
-                  ) : heartRate > 0 ? (
+                  ) : isEspActive ? (
                     <div className="text-[#2563eb] text-[12px] font-semibold flex items-center bg-[#eff6ff] dark:bg-[#2563eb]/10 px-3 py-1.5 rounded-full">
                       <span className="w-[7px] h-[7px] bg-[#2563eb] rounded-full mr-[6px] animate-pulse"></span> Đang truyền
                     </div>
                   ) : (
                     <div className="text-[#f5a33b] text-[12px] font-semibold flex items-center bg-[#fff5e8] dark:bg-[#f5a33b]/10 px-3 py-1.5 rounded-full">
-                      <span className="w-[7px] h-[7px] bg-[#f5a33b] rounded-full mr-[6px]"></span> Chờ tín hiệu
+                      <span className="w-[7px] h-[7px] bg-[#f5a33b] rounded-full mr-[6px]"></span> Chờ tín hiệu ESP32
                     </div>
                   )}
                 </div>
@@ -452,26 +439,34 @@ export function HealthDashboardPage() {
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] flex flex-col transition-colors duration-300">
               <div className="mb-[20px]">
-                <div className="font-bold text-[16px]">Hoạt động trong tuần</div>
-                <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Số bước chân mỗi ngày</div>
+                <div className="font-bold text-[16px]">Hoạt động hôm nay</div>
+                <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Số bước chân từ thiết bị ESP32</div>
               </div>
 
               <div className="h-[280px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={getStepsChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#f1f5f9'} />
-                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
-                    <Tooltip cursor={{ fill: appSettings.darkMode ? '#334155' : '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }} />
-                    <Bar dataKey="steps" name="Số bước" fill="url(#colorSteps)" radius={[6, 6, 0, 0]} barSize={36} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {steps > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={getStepsChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorSteps" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#60a5fa" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={1} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#f1f5f9'} />
+                      <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
+                      <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickMargin={10} />
+                      <Tooltip cursor={{ fill: appSettings.darkMode ? '#334155' : '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px' }} />
+                      <Bar dataKey="steps" name="Số bước" fill="url(#colorSteps)" radius={[6, 6, 0, 0]} barSize={60} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-[#8b96a5] dark:text-slate-500">
+                    <Footprints className="w-10 h-10 mb-3 opacity-30" />
+                    <p className="text-[13px] font-medium">Chưa có dữ liệu bước chân</p>
+                    <p className="text-[12px] mt-1">Dữ liệu sẽ hiển thị khi ESP32 kết nối và gửi về</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -489,7 +484,11 @@ export function HealthDashboardPage() {
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">Nhịp tim hiện tại</div>
                 <div className="text-[42px] font-bold my-[15px]">{heartRate > 0 ? heartRate : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">BPM</small></div>
-                <span className="text-[#2563eb] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#2563eb] animate-pulse"></span> Trong giới hạn bình thường</span>
+                {heartRate > 0 ? (
+                  <span className="text-[#2563eb] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#2563eb] animate-pulse"></span> Trong giới hạn bình thường</span>
+                ) : (
+                  <span className="text-[#8b96a5] dark:text-slate-400 text-[13px] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600"></span> Chờ tín hiệu từ ESP32</span>
+                )}
                 <div className="w-full bg-slate-100 dark:bg-slate-700 h-[8px] rounded-full overflow-hidden mt-4">
                   <div className="bg-[#2563eb] h-full rounded-full transition-all duration-500" style={{ width: `${Math.min((heartRate / 150) * 100, 100)}%` }}></div>
                 </div>
@@ -506,15 +505,23 @@ export function HealthDashboardPage() {
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
                 <div className="text-[16px] font-bold mb-4 text-slate-900 dark:text-white">Biểu đồ nhịp tim</div>
                 <div className="h-[250px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
-                      <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#2563eb" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                      <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {liveData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
+                        <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#2563eb" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-[#8b96a5] dark:text-slate-500">
+                      <HeartPulse className="w-10 h-10 mb-3 opacity-30" />
+                      <p className="text-[13px] font-medium">Chưa nhận được dữ liệu</p>
+                      <p className="text-[12px] mt-1">Biểu đồ sẽ cập nhật khi ESP32 kết nối</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -559,7 +566,11 @@ export function HealthDashboardPage() {
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[25px] transition-colors duration-300">
                 <div className="text-[16px] font-bold text-slate-800 dark:text-white">SpO₂ hiện tại</div>
                 <div className="text-[42px] font-bold my-[15px]">{spO2 > 0 ? spO2 : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">%</small></div>
-                <span className="text-[#4385f5] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#4385f5]"></span> Chỉ số an toàn</span>
+                {spO2 > 0 ? (
+                  <span className="text-[#4385f5] text-[13px] font-semibold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#4385f5]"></span> {spO2 >= 95 ? 'Chỉ số an toàn' : 'SpO₂ đang thấp - cần chú ý!'}</span>
+                ) : (
+                  <span className="text-[#8b96a5] dark:text-slate-400 text-[13px] flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600"></span> Chờ tín hiệu từ ESP32</span>
+                )}
                 <div className="w-full bg-slate-100 dark:bg-slate-700 h-[8px] rounded-full overflow-hidden mt-4">
                   <div className="bg-[#4385f5] h-full rounded-full transition-all duration-500" style={{ width: `${spO2}%` }}></div>
                 </div>
@@ -576,15 +587,23 @@ export function HealthDashboardPage() {
               <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
                 <div className="text-[16px] font-bold mb-4 text-slate-900 dark:text-white">Biểu đồ SpO₂</div>
                 <div className="h-[250px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
-                      <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
-                      <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {liveData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
+                        <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} />
+                        <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-[#8b96a5] dark:text-slate-500">
+                      <Wind className="w-10 h-10 mb-3 opacity-30" />
+                      <p className="text-[13px] font-medium">Chưa nhận được dữ liệu</p>
+                      <p className="text-[12px] mt-1">Biểu đồ sẽ cập nhật khi ESP32 kết nối</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -661,76 +680,37 @@ export function HealthDashboardPage() {
                   </div>
                 </div>
               </div>
-
-              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[20px] transition-colors duration-300">
-                <div className="flex justify-between">
-                  <div>
-                    <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[3px]">Calo tiêu hao</div>
-                    <div className="text-[25px] font-bold mt-[10px]">{calories > 0 ? calories.toLocaleString() : '--'} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">kcal</small></div>
-                  </div>
-                  <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#f97316] bg-[#ffedd5] dark:bg-[#f97316]/20">
-                    <Flame className="w-[20px] h-[20px]" />
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] flex flex-col mb-[20px] transition-colors duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-[20px] gap-3">
                 <div>
                   <div className="font-bold text-[16px]">Biểu đồ tổng hợp Nhịp tim & SpO₂</div>
-                  <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Dữ liệu lưu trữ hệ thống</div>
-                </div>
-
-                <div className="flex bg-[#f5f7fb] dark:bg-[#0f172a] p-1 rounded-[10px] shrink-0">
-                  <button onClick={() => setViewMode('live')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'live' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Live</button>
-                  <button onClick={() => setViewMode('daily')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'daily' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Ngày</button>
-                  <button onClick={() => setViewMode('monthly')} className={`px-[16px] py-[6px] text-[13px] font-semibold rounded-[8px] transition-all ${viewMode === 'monthly' ? 'bg-white dark:bg-[#1e293b] text-[#2563eb] shadow-sm' : 'text-[#8b96a5] hover:text-[#17212b] dark:hover:text-white'}`}>Tháng</button>
+                  <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Dữ liệu trực tiếp từ thiết bị — cập nhật theo thời gian thực</div>
                 </div>
               </div>
 
               <div className="h-[350px] w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={getChartData()} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
-                    <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
-                    <YAxis yAxisId="left" stroke="#2563eb" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} />
-                    <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
-                    <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#2563eb" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
-                    <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={viewMode !== 'live'} isAnimationActive={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
-              <div className="font-bold text-[16px]">Phân tích xu hướng (AI)</div>
-              <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px] mb-[15px]">Dự báo dựa trên chuỗi dữ liệu 7 ngày qua</div>
-
-              <div className="flex gap-[15px] py-[12px] border-b border-[#e8edf2] dark:border-[#334155]">
-                <div className="w-[37px] h-[37px] shrink-0 rounded-[10px] flex justify-center items-center bg-[#eff6ff] dark:bg-[#2563eb]/20 text-[#2563eb]">
-                  <Award className="w-[18px] h-[18px]" />
-                </div>
-                <div>
-                  <strong className="text-[13px] block text-slate-800 dark:text-slate-200">Cải thiện tim mạch</strong>
-                  <p className="text-[12px] text-[#8b96a5] dark:text-slate-400 mt-[4px] leading-relaxed">
-                    Nhịp tim lúc nghỉ ngơi của bạn đã giảm 2% so với tuần trước. Đây là dấu hiệu cơ tim đang trở nên khỏe mạnh hơn nhờ việc duy trì số bước chân đều đặn.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-[15px] py-[12px]">
-                <div className="w-[37px] h-[37px] shrink-0 rounded-[10px] flex justify-center items-center bg-[#fff5e8] dark:bg-[#f5a33b]/20 text-[#f5a33b]">
-                  <Flame className="w-[18px] h-[18px]" />
-                </div>
-                <div>
-                  <strong className="text-[13px] block text-slate-800 dark:text-slate-200">Biến động Calo</strong>
-                  <p className="text-[12px] text-[#8b96a5] dark:text-slate-400 mt-[4px] leading-relaxed">
-                    Hoạt động ngày Thứ 5 tuần này suy giảm, lượng Calo tiêu thụ thấp hơn mức trung bình 15%. Hãy cố gắng vận động bù vào cuối tuần nhé.
-                  </p>
-                </div>
+                {liveData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
+                      <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
+                      <YAxis yAxisId="left" stroke="#2563eb" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} />
+                      <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
+                      <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-[#8b96a5] dark:text-slate-500">
+                    <BarChart3 className="w-12 h-12 mb-3 opacity-30" />
+                    <p className="text-[14px] font-medium">Chưa có dữ liệu để hiển thị</p>
+                    <p className="text-[13px] mt-1.5">Biểu đồ sẽ tự động cập nhật khi ESP32 kết nối và gửi dữ liệu về</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -744,15 +724,7 @@ export function HealthDashboardPage() {
                 <h2 className="text-[24px] font-bold">Báo cáo</h2>
                 <p className="text-[#8b96a5] dark:text-slate-400 text-[13px] mt-[5px]">Tổng hợp dữ liệu sức khỏe theo thời gian.</p>
               </div>
-              <button
-                onClick={() => {
-                  setHasUnread(true);
-                  toast.success("Đã gửi báo cáo mới. Vui lòng kiểm tra biểu tượng chuông trên góc phải!");
-                }}
-                className="bg-[#2563eb] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2"
-              >
-                <Bell className="w-4 h-4" /> Gửi báo cáo thử nghiệm
-              </button>
+
             </div>
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] transition-colors duration-300">
@@ -845,7 +817,7 @@ export function HealthDashboardPage() {
                   <div>
                     <div className="text-xs text-slate-500 mb-1">Tín hiệu WiFi (RSSI)</div>
                     <div className="flex items-end gap-2">
-                      <span className="text-2xl font-bold text-slate-800 dark:text-white">{deviceInfo.rssi || 0}</span>
+                      <span className="text-2xl font-bold text-slate-800 dark:text-white">{deviceInfo.rssi ?? '--'}</span>
                       <span className="text-sm font-medium text-slate-500 mb-1">dBm</span>
                     </div>
                   </div>
@@ -890,10 +862,10 @@ export function HealthDashboardPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-500 mb-1">Pin (Giả lập)</div>
+                      <div className="text-xs text-slate-500 mb-1">Pin</div>
                       <div className="flex items-end gap-1">
-                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.battery || 100}</span>
-                        <span className="text-xs font-medium text-slate-500 mb-1">%</span>
+                        <span className="text-lg font-bold text-slate-800 dark:text-white">{deviceInfo.battery ?? '--'}</span>
+                        <span className="text-xs font-medium text-slate-500 mb-1">{deviceInfo.battery !== null ? '%' : ''}</span>
                       </div>
                     </div>
                   </div>
@@ -1097,43 +1069,86 @@ export function HealthDashboardPage() {
       {/* POPUP CHI TIẾT BÁO CÁO */}
       {selectedReport && (
         <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-in fade-in zoom-in duration-200 border dark:border-[#334155]">
+          <div className="bg-white dark:bg-[#1e293b] rounded-2xl shadow-2xl max-w-lg w-full p-6 relative animate-in fade-in zoom-in duration-200 border dark:border-[#334155] max-h-[90vh] overflow-y-auto">
             <button onClick={() => setSelectedReport(null)} className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
               <X className="h-5 w-5" />
             </button>
-            <div className="mb-6">
+            <div className="mb-5">
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="h-5 w-5 text-[#2563eb]" />
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.type}</h3>
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400">Ngày tổng hợp: {selectedReport.date}</p>
             </div>
+
             <div className="space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Nhịp tim TB</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgHr} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">BPM</span></p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">SpO₂ TB</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgSpo2} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">%</span></p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Tổng bước chân</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.steps?.toLocaleString() || 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">Tổng Calo</p>
-                  <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.calo?.toLocaleString() || 0} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">kcal</span></p>
+              {/* Chỉ số đo lường */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Chỉ số đo lường</p>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Nhịp tim TB</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgHr} <span className="text-xs font-normal text-slate-500">BPM</span></p>
+                    {(selectedReport.minHr > 0 || selectedReport.maxHr > 0) && (
+                      <p className="text-[11px] text-slate-400 mt-0.5">↓{selectedReport.minHr} / ↑{selectedReport.maxHr}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">SpO₂ TB</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.avgSpo2}<span className="text-xs font-normal text-slate-500">%</span></p>
+                    {(selectedReport.minSpo2 > 0 || selectedReport.maxSpo2 > 0) && (
+                      <p className="text-[11px] text-slate-400 mt-0.5">↓{selectedReport.minSpo2}% / ↑{selectedReport.maxSpo2}%</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-0.5">Tổng bước chân</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.steps?.toLocaleString() || 0}</p>
+                  </div>
                 </div>
               </div>
-              <div className="bg-[#eff6ff] dark:bg-[#2563eb]/10 p-4 rounded-xl border border-[#b5efd9] dark:border-[#2563eb]/30">
-                <p className="text-sm text-[#0b9665] dark:text-[#2563eb] font-medium leading-relaxed">
-                  <strong>Nhận xét:</strong> Các chỉ số trong {selectedReport.type === "Báo cáo hàng ngày" ? "ngày" : "tuần"} này đều nằm trong mức an toàn. Mức vận động đạt tiêu chuẩn. Hãy tiếp tục duy trì nhé!
-                </p>
-              </div>
+
+              {/* Nhận xét AI */}
+              {selectedReport.aiAnalysis && selectedReport.aiAnalysis.summary ? (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Đánh giá AI cá nhân hóa</p>
+                  <div className={`p-4 rounded-xl border ${selectedReport.aiAnalysis.warning_flag
+                      ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
+                      : selectedReport.aiAnalysis.status === 'Tốt'
+                        ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30'
+                        : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'
+                    }`}>
+                    {/* Badge trạng thái */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${selectedReport.aiAnalysis.warning_flag
+                          ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                          : selectedReport.aiAnalysis.status === 'Tốt'
+                            ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                            : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        }`}>
+                        {selectedReport.aiAnalysis.warning_flag ? '⚠️ ' : selectedReport.aiAnalysis.status === 'Tốt' ? '✅ ' : '📊 '}
+                        {selectedReport.aiAnalysis.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed mb-2">
+                      {selectedReport.aiAnalysis.summary}
+                    </p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                      💡 <span className="font-medium">Lời khuyên:</span> {selectedReport.aiAnalysis.advice}
+                    </p>
+                  </div>
+                  {/* Disclaimer y tế bắt buộc */}
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 italic text-center">
+                    ⓘ Đánh giá được tạo tự động bởi AI và chỉ mang tính chất tham khảo, không thay thế chẩn đoán y khoa.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700 text-center text-slate-400 dark:text-slate-500 text-sm">
+                  Nhận xét AI chưa có (sẽ được tạo tự động lúc 23:59)
+                </div>
+              )}
             </div>
-            <button className="w-full mt-6 bg-[#2563eb] hover:bg-[#149965] text-white py-2.5 rounded-xl font-bold transition-colors" onClick={() => setSelectedReport(null)}>
+
+            <button className="w-full mt-5 bg-[#2563eb] hover:bg-blue-600 text-white py-2.5 rounded-xl font-bold transition-colors" onClick={() => setSelectedReport(null)}>
               Đóng báo cáo
             </button>
           </div>

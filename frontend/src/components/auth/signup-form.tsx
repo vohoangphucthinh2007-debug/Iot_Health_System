@@ -137,7 +137,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"div">)
 <Input
   type="text"
   id="username"
-  placeholder="moji"
+  placeholder="Nhập tên đăng nhập"
   {...register("username")}
   onBlur={async (e) => {
     const val = e.target.value;
