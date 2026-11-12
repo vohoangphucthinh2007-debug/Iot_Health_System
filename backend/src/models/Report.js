@@ -20,6 +20,8 @@ const reportSchema = new mongoose.Schema({
     advice:       { type: String, default: "" },  // Lời khuyên cụ thể
     warning_flag: { type: Boolean, default: false } // true nếu có chỉ số nguy hiểm
   }
-});
+}, { timestamps: true });
+
+reportSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model("Report", reportSchema);

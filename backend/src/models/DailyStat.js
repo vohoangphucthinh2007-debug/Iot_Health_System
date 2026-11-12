@@ -11,6 +11,8 @@ const dailyStatSchema = new mongoose.Schema({
   maxSpo2:   { type: Number, default: 0 },   // Thêm: SpO2 cao nhất trong ngày
   minSpo2:   { type: Number, default: 100 },
   steps:     { type: Number, default: 0 }
-});
+}, { timestamps: true });
+
+dailyStatSchema.index({ userId: 1, date: 1 }, { unique: true });
 
 export default mongoose.model("DailyStat", dailyStatSchema);

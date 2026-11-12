@@ -53,7 +53,8 @@ export function HealthDashboardPage() {
     phone: user?.phone || "",
     height: user?.height || "",
     weight: user?.weight || "",
-    healthGoal: user?.healthGoal || "Duy trì sức khỏe"
+    healthGoal: user?.healthGoal || "Duy trì sức khỏe",
+    deviceId: user?.deviceId || "vtt132109"
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -95,17 +96,31 @@ export function HealthDashboardPage() {
         phone: user.phone || "",
         height: user.height || "",
         weight: user.weight || "",
-        healthGoal: user.healthGoal || "Duy trì sức khỏe"
+        healthGoal: user.healthGoal || "Duy trì sức khỏe",
+        deviceId: user.deviceId || "vtt132109"
       });
     }
   }, [user]);
 
   useEffect(() => {
+    // Reset dữ liệu hiển thị tức thời khi chuyển đổi user
+    setLiveData([]);
+    setHeartRate(0);
+    setSpO2(0);
+    setSteps(0);
+    setSessionStats({ sumHr: 0, sumSpo2: 0, count: 0, maxHr: 0, minHr: 999, maxSpo2: 0, minSpo2: 100 });
+
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
     const socketUrl = apiUrl.replace('/api', '');
-    const socket = io(socketUrl);
+    const uid = user?._id || '';
+    const socket = io(socketUrl, {
+      query: { userId: uid }
+    });
 
-    socket.on("connect", () => setIsConnected(true));
+    socket.on("connect", () => {
+      setIsConnected(true);
+      if (uid) socket.emit("registerUser", uid);
+    });
     socket.on("disconnect", () => {
       setIsConnected(false);
       setIsEspActive(false);
@@ -202,7 +217,7 @@ export function HealthDashboardPage() {
       socket.disconnect();
       if (espTimeoutRef[0]) clearTimeout(espTimeoutRef[0]);
     };
-  }, []);
+  }, [user?._id]);
 
   // Tự động tải thống kê tích lũy trong ngày từ Database (ngay cả khi ESP32 đang tắt/mất kết nối)
   useEffect(() => {
@@ -230,7 +245,7 @@ export function HealthDashboardPage() {
       }
     };
     fetchTodayStat();
-  }, []);
+  }, [user?._id]);
 
   useEffect(() => {
     if (activeTab === 'reports') {
@@ -248,7 +263,7 @@ export function HealthDashboardPage() {
       };
       fetchReports();
     }
-  }, [activeTab]);
+  }, [activeTab, user?._id]);
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
@@ -853,6 +868,7 @@ export function HealthDashboardPage() {
                   {isConnected ? 'Đang kết nối' : 'Mất kết nối'}
                 </p>
                 <div className="text-xs text-slate-500 mt-2">IP: {deviceInfo.ip || 'N/A'}</div>
+                <div className="text-xs text-slate-500 mt-1">Mã thiết bị: <span className="font-semibold text-slate-700 dark:text-slate-300">{profileData.deviceId || 'vtt132109'}</span></div>
               </div>
 
               {/* Box 2: Tín hiệu WiFi & Uptime */}
@@ -1098,6 +1114,29 @@ export function HealthDashboardPage() {
                   </select>
                 </div>
 
+                {/* Mã thiết bị vòng đeo tay */}
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    Mã thiết bị vòng đeo tay (Device ID)
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Cpu className="h-[18px] w-[18px]" />
+                    </div>
+                    <input
+                      type="text"
+                      name="deviceId"
+                      value={profileData.deviceId}
+                      onChange={handleProfileChange}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-[#334155] rounded-xl focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] outline-none text-slate-800 dark:text-white transition-all text-sm"
+                      placeholder="vtt132109"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    Nhập mã vòng tay của bạn để hệ thống nhận dữ liệu riêng biệt từ thiết bị của bạn (ví dụ: vtt132109).
+                  </p>
+                </div>
+
               </div>
 
               {/* Nút lưu */}
@@ -1163,18 +1202,18 @@ export function HealthDashboardPage() {
                 <div>
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Đánh giá AI cá nhân hóa</p>
                   <div className={`p-4 rounded-xl border ${selectedReport.aiAnalysis.warning_flag
-                      ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
-                      : selectedReport.aiAnalysis.status === 'Tốt'
-                        ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30'
-                        : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'
+                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
+                    : selectedReport.aiAnalysis.status === 'Tốt'
+                      ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30'
+                      : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'
                     }`}>
                     {/* Badge trạng thái */}
                     <div className="flex items-center gap-2 mb-3">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${selectedReport.aiAnalysis.warning_flag
-                          ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
-                          : selectedReport.aiAnalysis.status === 'Tốt'
-                            ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
-                            : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                        ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                        : selectedReport.aiAnalysis.status === 'Tốt'
+                          ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                          : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
                         }`}>
                         {selectedReport.aiAnalysis.warning_flag ? '⚠️ ' : selectedReport.aiAnalysis.status === 'Tốt' ? '✅ ' : '📊 '}
                         {selectedReport.aiAnalysis.status}

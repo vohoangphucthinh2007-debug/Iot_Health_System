@@ -17,7 +17,7 @@ export const authMe = async (req, res) => {
 // PUT /api/users/profile
 export const updateProfile = async (req, res) => {
   try {
-    const { displayName, phone, dob, gender, height, weight, healthGoal } = req.body;
+    const { displayName, phone, dob, gender, height, weight, healthGoal, deviceId } = req.body;
 
     const targetId = req.user?._id || req.user?.userId || req.user?.id;
     if (!targetId) {
@@ -32,6 +32,7 @@ export const updateProfile = async (req, res) => {
     if (height !== undefined)      updateFields.height = height ? Number(height) : null;
     if (weight !== undefined)      updateFields.weight = weight ? Number(weight) : null;
     if (healthGoal !== undefined)  updateFields.healthGoal = healthGoal;
+    if (deviceId !== undefined)    updateFields.deviceId = deviceId.trim();
 
     const updatedUser = await User.findByIdAndUpdate(
       targetId,

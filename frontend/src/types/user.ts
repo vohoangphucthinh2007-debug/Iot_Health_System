@@ -13,6 +13,7 @@ export interface User {
   height?: number | string;
   weight?: number | string;
   healthGoal?: string;
+  deviceId?: string;
   settings?: {
     heartRateTracking: boolean;
     spo2Tracking: boolean;

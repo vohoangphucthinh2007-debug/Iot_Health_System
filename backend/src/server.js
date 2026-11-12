@@ -62,92 +62,151 @@ const io = new Server(server, {
   },
 });
 
-// ESP32 publish lên broker.emqx.io với base topic: bioband/vtt132109/dev01
-const MQTT_BASE    = "bioband/vtt132109/dev01";
-const TOPIC_TELEM  = `${MQTT_BASE}/telemetry`;   // dữ liệu sức khỏe (1 lần/giây)
-const TOPIC_ALERT  = `${MQTT_BASE}/fall/alert`;  // cảnh báo ngã
-const TOPIC_HIST   = `${MQTT_BASE}/history`;     // ảnh chụp 60s gần nhất (ESP gửi mỗi 5s)
+// ==========================================
+// CẤU NỐI MQTT & WEBSOCKET CHO TỪNG USER
+// ==========================================
+// Base topic mẫu: bioband/<deviceId>/dev01
+const MQTT_TOPICS = [
+  "bioband/+/dev01/telemetry",
+  "bioband/+/telemetry",
+  "bioband/+/dev01/fall/alert",
+  "bioband/+/fall/alert",
+  "bioband/+/dev01/history",
+  "bioband/+/history",
+  "bioband/vtt132109/dev01/telemetry",
+  "bioband/vtt132109/dev01/fall/alert",
+  "bioband/vtt132109/dev01/history",
+];
 
-let latestHistoryData = null;
+// Quản lý các user đang online trên web dashboard (để gán dữ liệu ESP32 cho đúng user đang dùng)
+const activeOnlineUsers = new Map(); // socket.id -> userId
+let latestActiveUserId = null;       // user gần nhất vừa mở dashboard
 
-// Xử lý kết nối WebSockets
-io.on("connection", (socket) => {
-  console.log("🟢 Có thiết bị vừa kết nối WebSockets:", socket.id);
-  // Nếu đã có snapshot biểu đồ gần nhất từ ESP, gửi ngay cho client vừa vào web
-  if (latestHistoryData) {
-    socket.emit("sensorHistory", latestHistoryData);
+// Hàm tìm đúng user: Ưu tiên tài khoản đang đăng nhập trên Web Dashboard
+async function findUserByTopic(topic) {
+  // 1. Ưu tiên cao nhất: User đang đăng nhập và online trên web dashboard
+  if (activeOnlineUsers.size > 0) {
+    const onlineUserIds = Array.from(activeOnlineUsers.values());
+    const currentOnlineUid = onlineUserIds[onlineUserIds.length - 1];
+    try {
+      const activeUser = await User.findById(currentOnlineUid);
+      if (activeUser) return activeUser;
+    } catch (_) {}
   }
+
+  // 2. User vừa hoạt động gần nhất (trong trường hợp web vừa tạm refresh)
+  if (latestActiveUserId) {
+    try {
+      const lastUser = await User.findById(latestActiveUserId);
+      if (lastUser) return lastUser;
+    } catch (_) {}
+  }
+
+  // 3. Khớp theo mã thiết bị deviceId hoặc username từ topic MQTT (bioband/<deviceId>/...)
+  const parts = topic.split('/');
+  if (parts.length >= 2) {
+    const devId = parts[1];
+    const user = await User.findOne({
+      $or: [
+        { deviceId: devId },
+        { username: devId.toLowerCase() },
+      ]
+    });
+    if (user) return user;
+  }
+
+  // 4. Fallback cuối cùng: user đầu tiên trong DB
+  return await User.findOne();
+}
+
+// Xử lý kết nối WebSockets — phòng riêng biệt theo userId
+io.on("connection", (socket) => {
+  const userId = socket.handshake.query?.userId || socket.handshake.auth?.userId;
+  if (userId) {
+    socket.join(`user_${userId}`);
+    activeOnlineUsers.set(socket.id, userId);
+    latestActiveUserId = userId;
+    console.log(`🟢 User ${userId} đã đăng nhập và vào phòng WebSockets: user_${userId}`);
+  } else {
+    console.log("🟢 Có client kết nối WebSockets:", socket.id);
+  }
+
+  // Đăng ký userId khi client gửi event
+  socket.on("registerUser", (uid) => {
+    if (uid) {
+      socket.join(`user_${uid}`);
+      activeOnlineUsers.set(socket.id, uid);
+      latestActiveUserId = uid;
+      console.log(`🟢 Đã đăng ký socket ${socket.id} cho user: ${uid}`);
+    }
+  });
+
   socket.on("disconnect", () => {
+    activeOnlineUsers.delete(socket.id);
     console.log("🔴 Thiết bị ngắt kết nối:", socket.id);
   });
 });
 
-// ==========================================
-// CẤU NỐI MQTT & LƯU DB NHÁP
-// ==========================================
 const mqttClient = mqtt.connect("mqtt://broker.emqx.io:1883");
 
 mqttClient.on("connect", () => {
   console.log("🟢 Backend đã kết nối thành công tới MQTT Broker!");
-  mqttClient.subscribe(TOPIC_TELEM, (err) => {
-    if (!err) console.log(`📡 Đã subscribe topic: ${TOPIC_TELEM}`);
-  });
-  mqttClient.subscribe(TOPIC_ALERT, (err) => {
-    if (!err) console.log(`🚨 Đã subscribe topic: ${TOPIC_ALERT}`);
-  });
-  mqttClient.subscribe(TOPIC_HIST, (err) => {
-    if (!err) console.log(`📜 Đã subscribe topic: ${TOPIC_HIST}`);
+  MQTT_TOPICS.forEach((t) => {
+    mqttClient.subscribe(t, (err) => {
+      if (!err) console.log(`📡 Đã subscribe topic: ${t}`);
+    });
   });
 });
 
 mqttClient.on("message", async (topic, message) => {
   // ── Telemetry: dữ liệu sức khoẻ từ ESP32 ──────────────────────────────
-  if (topic === TOPIC_TELEM) {
+  if (topic.endsWith("/telemetry")) {
     try {
       const d = JSON.parse(message.toString());
 
-      // ESP32 gửi "bpm" (không phải "hr"), "spo2", "steps" (nếu có)
-      const hr    = d.bpm   || 0;
-      const spo2  = d.spo2  || 0;
+      // ESP32 gửi "bpm", "spo2", "steps"
+      const hr = d.bpm || 0;
+      const spo2 = d.spo2 || 0;
       const steps = d.steps || 0;
 
-      console.log(`📡 Nhận MQTT - HR: ${hr} BPM, SpO2: ${spo2}%, Bước: ${steps}`);
+      // Tìm đúng user sở hữu thiết bị này
+      const targetUser = await findUserByTopic(topic);
+      if (!targetUser) return;
 
-      // Chuyển tiếp dữ liệu sức khoẻ xuống Frontend qua Socket.io
-      io.emit("sensorData", { heartRate: hr, spO2: spo2, steps });
+      console.log(`📡 Nhận MQTT [User: ${targetUser.username}] - HR: ${hr} BPM, SpO2: ${spo2}%, Bước: ${steps}`);
+
+      const userRoom = `user_${targetUser._id}`;
+
+      // Chuyển tiếp dữ liệu sức khoẻ RIÊNG cho user này qua Socket.io
+      io.to(userRoom).emit("sensorData", { heartRate: hr, spO2: spo2, steps });
 
       // Chuyển tiếp thông số thiết bị ESP32 (nếu có)
-      // ESP gửi: rssi, heap (free RAM), uptime, ip, battery
       if (d.rssi !== undefined || d.heap !== undefined || d.battery !== undefined ||
-          d.uptime !== undefined || d.ip !== undefined || d.ram !== undefined) {
-        io.emit("deviceInfo", {
-          ram:      d.heap      ?? d.ram      ?? null,  // heap = free RAM (bytes)
-          ramTotal: d.ramTotal               ?? null,
-          battery:  d.battery               ?? null,
-          rssi:     d.rssi                  ?? null,
-          uptime:   d.uptime                ?? null,
-          temp:     d.temp                  ?? null,
-          ip:       d.ip                    ?? null,
+        d.uptime !== undefined || d.ip !== undefined || d.ram !== undefined) {
+        io.to(userRoom).emit("deviceInfo", {
+          ram: d.heap ?? d.ram ?? null,
+          ramTotal: d.ramTotal ?? null,
+          battery: d.battery ?? null,
+          rssi: d.rssi ?? null,
+          uptime: d.uptime ?? null,
+          temp: d.temp ?? null,
+          ip: d.ip ?? null,
         });
       }
 
-      // Lưu vào DB nháp để cuối ngày tính tổng
+      // Lưu vào DB nháp theo từng user và từng ngày riêng biệt
       if (hr > 0 && spo2 > 0) {
         const today = new Date().toISOString().split('T')[0];
-        const user = await User.findOne();
-
-        if (user) {
-          await DailyStat.findOneAndUpdate(
-            { userId: user._id, date: today },
-            {
-              $inc: { totalHr: hr, totalSpo2: spo2, count: 1 },
-              $max: { maxHr: hr, maxSpo2: spo2 },
-              $min: { minHr: hr, minSpo2: spo2 },
-              $set: { steps }
-            },
-            { upsert: true, new: true }
-          );
-        }
+        await DailyStat.findOneAndUpdate(
+          { userId: targetUser._id, date: today },
+          {
+            $inc: { totalHr: hr, totalSpo2: spo2, count: 1 },
+            $max: { maxHr: hr, maxSpo2: spo2 },
+            $min: { minHr: hr, minSpo2: spo2 },
+            $set: { steps }
+          },
+          { upsert: true, new: true }
+        );
       }
     } catch (e) {
       console.error("[-] Lỗi xử lý MQTT telemetry:", e);
@@ -155,28 +214,31 @@ mqttClient.on("message", async (topic, message) => {
   }
 
   // ── Fall Alert: cảnh báo ngã từ ESP32 ─────────────────────────────────
-  if (topic === TOPIC_ALERT) {
+  if (topic.endsWith("/fall/alert")) {
     try {
       const alert = JSON.parse(message.toString());
-      console.log(`🚨 Cảnh báo ngã từ ESP32:`, alert);
-      // Gửi cảnh báo ngã lên Frontend để hiển thị thông báo
-      io.emit("fallAlert", {
-        state:  alert.state  || "Unknown",
-        reason: alert.reason || "",
-        falls:  alert.falls  || 0,
-      });
+      const targetUser = await findUserByTopic(topic);
+      if (targetUser) {
+        console.log(`🚨 Cảnh báo ngã cho user ${targetUser.username}:`, alert);
+        io.to(`user_${targetUser._id}`).emit("fallAlert", {
+          state: alert.state || "Unknown",
+          reason: alert.reason || "",
+          falls: alert.falls || 0,
+        });
+      }
     } catch (e) {
       console.error("[-] Lỗi xử lý MQTT fall alert:", e);
     }
   }
 
   // ── History: ảnh chụp biểu đồ 60s gần nhất từ ESP32 ──────────────────
-  if (topic === TOPIC_HIST) {
+  if (topic.endsWith("/history")) {
     try {
       const hist = JSON.parse(message.toString());
-      latestHistoryData = hist;
-      // Gửi snapshot lịch sử cho tất cả client để vẽ biểu đồ ngay lập tức
-      io.emit("sensorHistory", hist);
+      const targetUser = await findUserByTopic(topic);
+      if (targetUser) {
+        io.to(`user_${targetUser._id}`).emit("sensorHistory", hist);
+      }
     } catch (e) {
       console.error("[-] Lỗi xử lý MQTT history:", e);
     }
@@ -200,16 +262,16 @@ function calculateAge(dob) {
 // HÀM GỌI GEMINI AI TẠO NHẬN XÉT SỨC KHOẺ
 // ==========================================
 async function generateAIAnalysis(user, stat) {
-  const avgHr   = stat.count > 0 ? Math.round(stat.totalHr   / stat.count) : 0;
+  const avgHr = stat.count > 0 ? Math.round(stat.totalHr / stat.count) : 0;
   const avgSpo2 = stat.count > 0 ? Math.round(stat.totalSpo2 / stat.count) : 0;
-  const age     = calculateAge(user.dob);
+  const age = calculateAge(user.dob);
 
   // Map healthGoal → mô tả mức độ hoạt động
   const activityMap = {
-    "Duy trì sức khỏe":     "Vận động ở mức độ trung bình, duy trì lối sống lành mạnh",
-    "Giảm cân":              "Đang tích cực tăng cường vận động để giảm cân",
-    "Tăng cơ":               "Tập luyện thể lực và tăng cơ bắp thường xuyên",
-    "Cải thiện tim mạch":    "Tập cardio và cải thiện sức bền tim mạch"
+    "Duy trì sức khỏe": "Vận động ở mức độ trung bình, duy trì lối sống lành mạnh",
+    "Giảm cân": "Đang tích cực tăng cường vận động để giảm cân",
+    "Tăng cơ": "Tập luyện thể lực và tăng cơ bắp thường xuyên",
+    "Cải thiện tim mạch": "Tập cardio và cải thiện sức bền tim mạch"
   };
   const activityLevel = activityMap[user.healthGoal] || "Mức độ vận động trung bình";
 
@@ -249,55 +311,114 @@ YÊU CẦU ĐẦU RA:
 }
 
 // ==========================================
-// CRONJOB: TỰ ĐỘNG CHỐT BÁO CÁO LÚC 23:59
+// HÀM TỔNG HỢP VÀ GỬI DỮ LIỆU CHO AI BÁO CÁO TỰ ĐỘNG
+// ==========================================
+async function processDailyReportForStats(stats, dateStr, reportDisplayDate) {
+  for (let stat of stats) {
+    // CHỈ TẠO BÁO CÁO NẾU USER CÓ DỮ LIỆU ĐO THỰC TẾ TRONG NGÀY ĐÓ
+    if (!stat || stat.count <= 0 || stat.totalHr <= 0) {
+      console.log(`⏩ Bỏ qua user ${stat.userId} vì không có dữ liệu đo được trong ngày ${dateStr}`);
+      continue;
+    }
+
+    const user = await User.findById(stat.userId);
+    if (!user) continue;
+
+    // Kiểm tra xem đã có báo cáo cho ngày này chưa (tránh tạo trùng lặp)
+    const existingReport = await Report.findOne({ userId: user._id, date: reportDisplayDate });
+    if (existingReport) {
+      console.log(`ℹ️ User [${user.displayName || user.username}] đã có báo cáo ngày ${reportDisplayDate}, bỏ qua.`);
+      continue;
+    }
+
+    const avgHr   = Math.round(stat.totalHr   / stat.count);
+    const avgSpo2 = Math.round(stat.totalSpo2 / stat.count);
+
+    console.log(`🤖 Tự động trích xuất dữ liệu ngày ${dateStr} của user [${user.displayName || user.username}] gửi cho AI...`);
+
+    // Gửi riêng dữ liệu của user này cho Gemini AI phân tích cá nhân hóa
+    let aiAnalysis = { status: "", summary: "", advice: "", warning_flag: false };
+    try {
+      aiAnalysis = await generateAIAnalysis(user, stat);
+      console.log(`✅ AI phân tích xong cho user [${user.displayName || user.username}]:`, aiAnalysis.status);
+    } catch (aiErr) {
+      console.error(`⚠️ Lỗi gọi Gemini AI cho user ${user.username}:`, aiErr.message);
+    }
+
+    // Tự động tạo và lưu báo cáo chính thức vào ô dữ liệu riêng của user này
+    await Report.create({
+      userId:  stat.userId,
+      date:    reportDisplayDate,
+      type:    "Báo cáo hàng ngày",
+      status:  "Hoàn thành",
+      avgHr,
+      avgSpo2,
+      maxHr:   stat.maxHr,
+      minHr:   stat.minHr === 999 ? 0 : stat.minHr,
+      maxSpo2: stat.maxSpo2,
+      minSpo2: stat.minSpo2 === 100 ? 0 : stat.minSpo2,
+      steps:   stat.steps || 0,
+      aiAnalysis
+    });
+    console.log(`🎉 Đã tự động tạo báo cáo ngày ${reportDisplayDate} cho user [${user.displayName || user.username}]`);
+
+    // Báo cho frontend của user đó qua Socket.io nếu đang mở web
+    io.to(`user_${user._id}`).emit("newReportReady", { date: reportDisplayDate });
+
+    // ── QUY TẮC XOAY VÒNG 15 NGÀY (FIFO) ─────────────────────────────────
+    // 1. Duy trì tối đa 15 báo cáo gần nhất trong collection Report của user này
+    const userReports = await Report.find({ userId: stat.userId }).sort({ createdAt: -1 });
+    if (userReports.length > 15) {
+      const excessReports = userReports.slice(15);
+      const reportIdsToDelete = excessReports.map(r => r._id);
+      await Report.deleteMany({ _id: { $in: reportIdsToDelete } });
+      console.log(`🧹 Đã xóa ${reportIdsToDelete.length} báo cáo cũ nhất của user [${user.username}] (duy trì 15 ngày)`);
+    }
+
+    // 2. Duy trì tối đa 15 ngày dữ liệu sức khỏe trong collection DailyStat của user này
+    const userDailyStats = await DailyStat.find({ userId: stat.userId }).sort({ date: -1 });
+    if (userDailyStats.length > 15) {
+      const excessDaily = userDailyStats.slice(15);
+      const dailyIdsToDelete = excessDaily.map(d => d._id);
+      await DailyStat.deleteMany({ _id: { $in: dailyIdsToDelete } });
+      console.log(`🧹 Đã xóa ${dailyIdsToDelete.length} ngày DailyStat cũ nhất của user [${user.username}] (duy trì 15 ngày)`);
+    }
+  }
+}
+
+// Kiểm tra bù báo cáo nếu server bị tắt đúng thời điểm 23:59 hôm trước
+async function checkMissedDailyReports() {
+  try {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yDateStr = yesterday.toISOString().split('T')[0];
+    const yDisplayStr = yesterday.toLocaleDateString('vi-VN');
+
+    const missedStats = await DailyStat.find({ date: yDateStr, count: { $gt: 0 }, totalHr: { $gt: 0 } });
+    if (missedStats.length > 0) {
+      console.log(`🔍 Phát hiện ${missedStats.length} user có dữ liệu ngày hôm qua (${yDateStr}) chưa chốt báo cáo. Đang tự động xử lý...`);
+      await processDailyReportForStats(missedStats, yDateStr, yDisplayStr);
+    }
+  } catch (e) {
+    console.error("Lỗi khi kiểm tra báo cáo chưa chốt:", e);
+  }
+}
+
+// ==========================================
+// CRONJOB: TỰ ĐỘNG CHỐT BÁO CÁO LÚC 23:59 MỖI ĐÊM (KHÔNG CẦN BẤM NÚT)
 // ==========================================
 cron.schedule("59 23 * * *", async () => {
-  console.log("🕑 Đang tổng hợp báo cáo ngày...");
+  console.log("🕑 23:59 — Tự động quét dữ liệu trong ngày của từng user để gửi AI...");
   try {
     const today = new Date().toISOString().split('T')[0];
-    const stats = await DailyStat.find({ date: today });
+    const reportDate = new Date().toLocaleDateString('vi-VN');
 
-    for (let stat of stats) {
-      const avgHr   = stat.count > 0 ? Math.round(stat.totalHr   / stat.count) : 0;
-      const avgSpo2 = stat.count > 0 ? Math.round(stat.totalSpo2 / stat.count) : 0;
-      const reportDate = new Date().toLocaleDateString('vi-VN');
-
-      // Lấy thông tin user để cá nhân hóa prompt
-      const user = await User.findById(stat.userId);
-
-      // Gọi Gemini AI để tạo nhận xét
-      let aiAnalysis = { status: "", summary: "", advice: "", warning_flag: false };
-      if (user && avgHr > 0) {
-        try {
-          aiAnalysis = await generateAIAnalysis(user, stat);
-          console.log(`✅ AI nhận xét cho user ${user.displayName}:`, aiAnalysis.status);
-        } catch (aiErr) {
-          console.error("⚠️ Lỗi gọi Gemini AI:", aiErr.message);
-        }
-      }
-
-      // Tạo báo cáo chính thức kèm nhận xét AI
-      await Report.create({
-        userId:  stat.userId,
-        date:    reportDate,
-        type:    "Báo cáo hàng ngày",
-        status:  "Hoàn thành",
-        avgHr,
-        avgSpo2,
-        maxHr:   stat.maxHr,
-        minHr:   stat.minHr === 999 ? 0 : stat.minHr,
-        maxSpo2: stat.maxSpo2,
-        minSpo2: stat.minSpo2,
-        steps:   stat.steps,
-        aiAnalysis
-      });
-
-      // Xóa bản nháp sau khi tính toán xong
-      await DailyStat.deleteOne({ _id: stat._id });
-    }
-    console.log(`✅ Đã chốt xong báo cáo cho ngày ${today}`);
+    // Chỉ tìm những user CÓ DỮ LIỆU ĐO THỰC TẾ trong ngày hôm nay (count > 0, totalHr > 0)
+    const stats = await DailyStat.find({ date: today, count: { $gt: 0 }, totalHr: { $gt: 0 } });
+    await processDailyReportForStats(stats, today, reportDate);
+    console.log(`✅ Đã chốt xong báo cáo tự động cho ngày ${today}.`);
   } catch (error) {
-    console.error("❌ Lỗi khi sinh báo cáo tự động:", error);
+    console.error("❌ Lỗi khi sinh báo cáo tự động 23:59:", error);
   }
 });
 
@@ -313,5 +434,6 @@ app.use("/api/users", userRoute);
 connectDB().then(() => {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server & Socket.io đang chạy trên cổng ${PORT} và sẵn sàng nhận kết nối!`);
+    checkMissedDailyReports();
   });
 });

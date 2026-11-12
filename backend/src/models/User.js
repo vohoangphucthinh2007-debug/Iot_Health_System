@@ -60,6 +60,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "Duy trì sức khỏe",
     },
+    // Mã định danh thiết bị vòng tay ESP32 liên kết với user
+    deviceId: {
+      type: String,
+      default: "vtt132109",
+      trim: true,
+    },
     // Cài đặt ứng dụng
     settings: {
       heartRateTracking: { type: Boolean, default: true },
