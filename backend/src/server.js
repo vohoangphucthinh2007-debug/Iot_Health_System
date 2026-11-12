@@ -158,6 +158,11 @@ mqttClient.on("connect", () => {
   });
 });
 
+// Hàm lấy chuỗi ngày định dạng YYYY-MM-DD theo giờ Việt Nam (Asia/Ho_Chi_Minh)
+export function getLocalDateString(d = new Date()) {
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
 mqttClient.on("message", async (topic, message) => {
   // ── Telemetry: dữ liệu sức khoẻ từ ESP32 ──────────────────────────────
   if (topic.endsWith("/telemetry")) {
@@ -196,7 +201,7 @@ mqttClient.on("message", async (topic, message) => {
 
       // Lưu vào DB nháp theo từng user và từng ngày riêng biệt
       if (hr > 0 && spo2 > 0) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         await DailyStat.findOneAndUpdate(
           { userId: targetUser._id, date: today },
           {
@@ -319,7 +324,7 @@ YÊU CẦU ĐẦU RA:
 // ==========================================
 // HÀM TỔNG HỢP VÀ GỬI DỮ LIỆU CHO AI BÁO CÁO TỰ ĐỘNG
 // ==========================================
-async function processDailyReportForStats(stats, dateStr, reportDisplayDate) {
+export async function processDailyReportForStats(stats, dateStr, reportDisplayDate) {
   for (let stat of stats) {
     // CHỈ TẠO BÁO CÁO NẾU USER CÓ DỮ LIỆU ĐO THỰC TẾ TRONG NGÀY ĐÓ
     if (!stat || stat.count <= 0 || stat.totalHr <= 0) {
@@ -392,18 +397,25 @@ async function processDailyReportForStats(stats, dateStr, reportDisplayDate) {
   }
 }
 
-// Kiểm tra bù báo cáo nếu server bị tắt đúng thời điểm 23:59 hôm trước
+// Kiểm tra bù báo cáo nếu server bị tắt đúng thời điểm 23:59 hôm trước hoặc có ngày chưa chốt
 async function checkMissedDailyReports() {
   try {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yDateStr = yesterday.toISOString().split('T')[0];
-    const yDisplayStr = yesterday.toLocaleDateString('vi-VN');
+    const todayStr = getLocalDateString();
+    
+    // Tìm tất cả DailyStat của các ngày TRƯỚC HÔM NAY mà có dữ liệu đo thực tế
+    const missedStats = await DailyStat.find({ 
+      date: { $lt: todayStr }, 
+      count: { $gt: 0 }, 
+      totalHr: { $gt: 0 } 
+    });
 
-    const missedStats = await DailyStat.find({ date: yDateStr, count: { $gt: 0 }, totalHr: { $gt: 0 } });
     if (missedStats.length > 0) {
-      console.log(`🔍 Phát hiện ${missedStats.length} user có dữ liệu ngày hôm qua (${yDateStr}) chưa chốt báo cáo. Đang tự động xử lý...`);
-      await processDailyReportForStats(missedStats, yDateStr, yDisplayStr);
+      console.log(`🔍 Phát hiện ${missedStats.length} bản ghi sức khoẻ các ngày trước chưa chốt báo cáo. Đang tự động xử lý...`);
+      for (const stat of missedStats) {
+        const [y, m, d] = stat.date.split('-');
+        const displayDate = `${d}/${m}/${y}`;
+        await processDailyReportForStats([stat], stat.date, displayDate);
+      }
     }
   } catch (e) {
     console.error("Lỗi khi kiểm tra báo cáo chưa chốt:", e);
@@ -411,13 +423,13 @@ async function checkMissedDailyReports() {
 }
 
 // ==========================================
-// CRONJOB: TỰ ĐỘNG CHỐT BÁO CÁO LÚC 23:59 MỖI ĐÊM (KHÔNG CẦN BẤM NÚT)
+// CRONJOB: TỰ ĐỘNG CHỐT BÁO CÁO LÚC 23:59 MỖI ĐÊM THEO GIỜ VIỆT NAM (KHÔNG CẦN BẤM NÚT)
 // ==========================================
 cron.schedule("59 23 * * *", async () => {
-  console.log("🕑 23:59 — Tự động quét dữ liệu trong ngày của từng user để gửi AI...");
+  console.log("🕑 23:59 (Giờ VN) — Tự động quét dữ liệu trong ngày của từng user để gửi AI...");
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const reportDate = new Date().toLocaleDateString('vi-VN');
+    const today = getLocalDateString();
+    const reportDate = new Date().toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 
     // Chỉ tìm những user CÓ DỮ LIỆU ĐO THỰC TẾ trong ngày hôm nay (count > 0, totalHr > 0)
     const stats = await DailyStat.find({ date: today, count: { $gt: 0 }, totalHr: { $gt: 0 } });
@@ -426,6 +438,8 @@ cron.schedule("59 23 * * *", async () => {
   } catch (error) {
     console.error("❌ Lỗi khi sinh báo cáo tự động 23:59:", error);
   }
+}, {
+  timezone: "Asia/Ho_Chi_Minh"
 });
 
 // ==========================================

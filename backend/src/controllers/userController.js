@@ -152,7 +152,7 @@ export const getReports = async (req, res) => {
 export const getTodayStat = async (req, res) => {
   try {
     const userId = req.user._id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
     const stat = await DailyStat.findOne({ userId, date: today });
 
     if (!stat) {

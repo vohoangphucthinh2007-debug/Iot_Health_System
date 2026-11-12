@@ -233,11 +233,11 @@ export function HealthDashboardPage() {
           const s = res.data;
           if (s.steps !== undefined) setSteps(Math.round(Number(s.steps)));
           if (s.count > 0) {
-            const count     = Math.round(Number(s.count));
-            const avgHrVal  = Math.round(Number(s.avgHr));
+            const count = Math.round(Number(s.count));
+            const avgHrVal = Math.round(Number(s.avgHr));
             const avgSpo2Val = Math.round(Number(s.avgSpo2));
-            const maxHrVal  = Math.round(Number(s.maxHr));
-            const minHrVal  = Math.round(Number(s.minHr));
+            const maxHrVal = Math.round(Number(s.maxHr));
+            const minHrVal = Math.round(Number(s.minHr));
             const maxSpo2Val = Math.round(Number(s.maxSpo2));
             const minSpo2Val = Math.round(Number(s.minSpo2));
 
