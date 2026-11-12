@@ -62,9 +62,21 @@ const io = new Server(server, {
   },
 });
 
+// ESP32 publish lên broker.emqx.io với base topic: bioband/vtt132109/dev01
+const MQTT_BASE    = "bioband/vtt132109/dev01";
+const TOPIC_TELEM  = `${MQTT_BASE}/telemetry`;   // dữ liệu sức khỏe (1 lần/giây)
+const TOPIC_ALERT  = `${MQTT_BASE}/fall/alert`;  // cảnh báo ngã
+const TOPIC_HIST   = `${MQTT_BASE}/history`;     // ảnh chụp 60s gần nhất (ESP gửi mỗi 5s)
+
+let latestHistoryData = null;
+
 // Xử lý kết nối WebSockets
 io.on("connection", (socket) => {
   console.log("🟢 Có thiết bị vừa kết nối WebSockets:", socket.id);
+  // Nếu đã có snapshot biểu đồ gần nhất từ ESP, gửi ngay cho client vừa vào web
+  if (latestHistoryData) {
+    socket.emit("sensorHistory", latestHistoryData);
+  }
   socket.on("disconnect", () => {
     console.log("🔴 Thiết bị ngắt kết nối:", socket.id);
   });
@@ -73,11 +85,6 @@ io.on("connection", (socket) => {
 // ==========================================
 // CẤU NỐI MQTT & LƯU DB NHÁP
 // ==========================================
-// ESP32 publish lên broker.emqx.io với base topic: bioband/vtt132109/dev01
-const MQTT_BASE    = "bioband/vtt132109/dev01";
-const TOPIC_TELEM  = `${MQTT_BASE}/telemetry`;   // dữ liệu sức khỏe (1 lần/giây)
-const TOPIC_ALERT  = `${MQTT_BASE}/fall/alert`;  // cảnh báo ngã
-
 const mqttClient = mqtt.connect("mqtt://broker.emqx.io:1883");
 
 mqttClient.on("connect", () => {
@@ -87,6 +94,9 @@ mqttClient.on("connect", () => {
   });
   mqttClient.subscribe(TOPIC_ALERT, (err) => {
     if (!err) console.log(`🚨 Đã subscribe topic: ${TOPIC_ALERT}`);
+  });
+  mqttClient.subscribe(TOPIC_HIST, (err) => {
+    if (!err) console.log(`📜 Đã subscribe topic: ${TOPIC_HIST}`);
   });
 });
 
@@ -157,6 +167,18 @@ mqttClient.on("message", async (topic, message) => {
       });
     } catch (e) {
       console.error("[-] Lỗi xử lý MQTT fall alert:", e);
+    }
+  }
+
+  // ── History: ảnh chụp biểu đồ 60s gần nhất từ ESP32 ──────────────────
+  if (topic === TOPIC_HIST) {
+    try {
+      const hist = JSON.parse(message.toString());
+      latestHistoryData = hist;
+      // Gửi snapshot lịch sử cho tất cả client để vẽ biểu đồ ngay lập tức
+      io.emit("sensorHistory", hist);
+    } catch (e) {
+      console.error("[-] Lỗi xử lý MQTT history:", e);
     }
   }
 });

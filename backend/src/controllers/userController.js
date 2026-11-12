@@ -1,4 +1,5 @@
 import Report from "../models/Report.js";
+import DailyStat from "../models/DailyStat.js";
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 
@@ -142,6 +143,36 @@ export const getReports = async (req, res) => {
     return res.status(200).json(formattedReports);
   } catch (error) {
     console.error("Lỗi getReports:", error);
+    return res.status(500).json({ message: "Lỗi hệ thống" });
+  }
+};
+
+// GET /api/users/today-stat — Lấy thống kê tích lũy trong ngày từ Database
+export const getTodayStat = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const today = new Date().toISOString().split('T')[0];
+    const stat = await DailyStat.findOne({ userId, date: today });
+
+    if (!stat) {
+      return res.status(200).json(null);
+    }
+
+    const avgHr = stat.count > 0 ? Math.round(stat.totalHr / stat.count) : 0;
+    const avgSpo2 = stat.count > 0 ? Math.round(stat.totalSpo2 / stat.count) : 0;
+
+    return res.status(200).json({
+      avgHr,
+      avgSpo2,
+      maxHr: stat.maxHr || 0,
+      minHr: stat.minHr === 999 ? 0 : stat.minHr,
+      maxSpo2: stat.maxSpo2 || 0,
+      minSpo2: stat.minSpo2 === 100 ? 0 : stat.minSpo2,
+      steps: stat.steps || 0,
+      count: stat.count || 0
+    });
+  } catch (error) {
+    console.error("Lỗi getTodayStat:", error);
     return res.status(500).json({ message: "Lỗi hệ thống" });
   }
 };

@@ -111,7 +111,7 @@ export function HealthDashboardPage() {
       setIsEspActive(false);
       setHeartRate(0);
       setSpO2(0);
-      setSteps(0);
+      // Giữ nguyên steps, sessionStats và liveData đã đo được — KHÔNG reset về 0
       setDeviceInfo({ ram: null, ramTotal: null, battery: null, rssi: null, uptime: null, temp: null, ip: null });
     });
 
@@ -170,15 +170,66 @@ export function HealthDashboardPage() {
       setHasUnread(true);
     });
 
+    // Nhận snapshot 60 giây gần nhất từ ESP32 (nếu vừa mở trang)
+    socket.on("sensorHistory", (hist: any) => {
+      if (hist && Array.isArray(hist.bpm) && hist.bpm.length > 0) {
+        setLiveData((prev) => {
+          if (prev.length > 0) return prev;
+          const now = Date.now();
+          const points = [];
+          const len = hist.bpm.length;
+          for (let i = 0; i < len; i++) {
+            const t = new Date(now - (len - 1 - i) * 1000);
+            const timeString = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}:${String(t.getSeconds()).padStart(2, '0')}`;
+            points.push({
+              time: timeString,
+              hr: hist.bpm[i] || 0,
+              spo2: hist.spo2 && hist.spo2[i] !== undefined ? hist.spo2[i] : 0,
+            });
+          }
+          return points.slice(-20);
+        });
+      }
+    });
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("sensorData");
       socket.off("deviceInfo");
       socket.off("fallAlert");
+      socket.off("sensorHistory");
       socket.disconnect();
       if (espTimeoutRef[0]) clearTimeout(espTimeoutRef[0]);
     };
+  }, []);
+
+  // Tự động tải thống kê tích lũy trong ngày từ Database (ngay cả khi ESP32 đang tắt/mất kết nối)
+  useEffect(() => {
+    const fetchTodayStat = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+        const res = await axios.get(`${apiUrl}/users/today-stat`, { withCredentials: true });
+        if (res.data) {
+          const s = res.data;
+          if (s.steps) setSteps(s.steps);
+          if (s.count > 0) {
+            setSessionStats((prev) => ({
+              sumHr: s.avgHr * s.count,
+              sumSpo2: s.avgSpo2 * s.count,
+              count: s.count,
+              maxHr: Math.max(prev.maxHr, s.maxHr || 0),
+              minHr: s.minHr > 0 ? (prev.minHr === 999 ? s.minHr : Math.min(prev.minHr, s.minHr)) : prev.minHr,
+              maxSpo2: Math.max(prev.maxSpo2, s.maxSpo2 || 0),
+              minSpo2: s.minSpo2 > 0 ? (prev.minSpo2 === 100 ? s.minSpo2 : Math.min(prev.minSpo2, s.minSpo2)) : prev.minSpo2,
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi lấy dữ liệu tích lũy hôm nay từ database:", err);
+      }
+    };
+    fetchTodayStat();
   }, []);
 
   useEffect(() => {
