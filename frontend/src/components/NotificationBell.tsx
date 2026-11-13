@@ -88,3 +88,4 @@ export default function NotificationBell({ className = "" }: { className?: strin
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -20,9 +20,19 @@ const STEPS: { icon: string; title: string; text: string; tab?: Tab }[] = [
 export default function OnboardingTour({ onStepTab }: { onStepTab?: (t: Tab) => void }) {
   const { user, setUser } = useAuthStore();
   const key = user?._id ? `onboarding_done_${user._id}` : "";
-  const [open, setOpen] = useState(() => (key ? !localStorage.getItem(key) : false));
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+
+  // Hiện hướng dẫn ngay khi biết user (kể cả user tải chậm) và user này chưa xem
+  useEffect(() => {
+    if (key && !localStorage.getItem(key)) {
+      setStep(0);
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
+  }, [key]);
 
   const existingAge = calcAgeFromDob(user?.dob);
   const [age, setAge] = useState<string>(existingAge ? String(existingAge) : "");
@@ -130,3 +140,4 @@ export default function OnboardingTour({ onStepTab }: { onStepTab?: (t: Tab) => 
     </div>
   );
 }
+

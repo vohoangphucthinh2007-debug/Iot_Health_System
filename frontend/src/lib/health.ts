@@ -8,3 +8,4 @@ export function calcAgeFromDob(dob?: string | null): number | null {
   if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
   return age > 0 && age < 120 ? age : null;
 }
+

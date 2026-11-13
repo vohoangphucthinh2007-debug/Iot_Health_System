@@ -287,7 +287,7 @@ Không chẩn đoán bệnh; nếu chỉ số bất thường hãy khuyên đi k
       };
     } catch (e) {
       console.error("⚠️ Lỗi AI nhận định:", e.message);
-      return res.status(503).json({ message: "AI tạm thời không phản hồi, vui lòng thử lại sau." });
+      return res.status(503).json({ message: "AI tạm thời không phản hồi, vui lòng thử lại sau.", detail: String(e.message).slice(0, 160) });
     }
     aiCache.set(key, { at: Date.now(), data });
     return res.status(200).json(data);
