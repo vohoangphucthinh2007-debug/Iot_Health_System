@@ -89,15 +89,75 @@ const MQTT_TOPICS = [
 // Quản lý các user đang online trên web dashboard (để gán dữ liệu ESP32 cho đúng user đang dùng)
 const activeOnlineUsers = new Map(); // socket.id -> userId
 let latestActiveUserId = null;       // user gần nhất vừa mở dashboard
+let confirmedEspUserId = null;       // user đã bấm "Xác nhận" khi có >= 2 tài khoản cùng online
+let lastOnlineSetKey = "";           // theo dõi tập hợp user online để phát hiện khi có user mới vào
+let lastClaimPromptAt = 0;           // chống spam gửi thông báo xác nhận liên tục
+
+function getUniqueOnlineUserIds() {
+  return [...new Set(Array.from(activeOnlineUsers.values()).map(String))];
+}
+
+function handleOnlineUsersChanged() {
+  const uniqueIds = getUniqueOnlineUserIds();
+  const currentKey = uniqueIds.slice().sort().join(",");
+
+  // Nếu user đã xác nhận thoát khỏi web → xoá trạng thái xác nhận
+  if (confirmedEspUserId && !uniqueIds.includes(String(confirmedEspUserId))) {
+    confirmedEspUserId = null;
+  }
+
+  // Nếu chỉ còn 1 user online → tự động gán cho user đó
+  if (uniqueIds.length === 1) {
+    confirmedEspUserId = uniqueIds[0];
+    latestActiveUserId = uniqueIds[0];
+  }
+
+  // Nếu có >= 2 user online và danh sách user vừa thay đổi (có người mới truy cập cùng lúc)
+  if (uniqueIds.length >= 2 && currentKey !== lastOnlineSetKey) {
+    confirmedEspUserId = null;
+    lastClaimPromptAt = 0; // cho phép gửi thông báo xác nhận ngay lập tức
+  }
+  lastOnlineSetKey = currentKey;
+}
+
+function promptOnlineUsersToClaimEsp(uniqueIds) {
+  const now = Date.now();
+  if (now - lastClaimPromptAt < 12000) return; // tối đa 12s nhắc 1 lần
+  lastClaimPromptAt = now;
+  const payload = {
+    id: `esp_claim_${now}`,
+    type: "esp_claim",
+    title: "Xác nhận kết nối thiết bị ESP32",
+    message: `Hiện có ${uniqueIds.length} tài khoản đang truy cập cùng lúc và thiết bị ESP32 đang truyền tín hiệu. Hãy bấm xác nhận nếu bạn là người đang đo để dữ liệu lưu về tài khoản của bạn.`,
+    onlineCount: uniqueIds.length,
+    time: new Date().toISOString(),
+  };
+  uniqueIds.forEach((uid) => {
+    io.to(`user_${uid}`).emit("espClaimPrompt", payload);
+  });
+}
 
 // Hàm tìm đúng user: Ưu tiên tài khoản đang đăng nhập trên Web Dashboard
 async function findUserByTopic(topic) {
-  // 1. Ưu tiên cao nhất: User đang đăng nhập và online trên web dashboard
-  if (activeOnlineUsers.size > 0) {
-    const onlineUserIds = Array.from(activeOnlineUsers.values());
-    const currentOnlineUid = onlineUserIds[onlineUserIds.length - 1];
+  const uniqueIds = getUniqueOnlineUserIds();
+
+  // 1a. Có >= 2 user đang cùng truy cập: chỉ truyền cho user ĐÃ XÁC NHẬN
+  if (uniqueIds.length >= 2) {
+    if (confirmedEspUserId && uniqueIds.includes(String(confirmedEspUserId))) {
+      try {
+        const confirmedUser = await User.findById(confirmedEspUserId);
+        if (confirmedUser) return confirmedUser;
+      } catch (_) {}
+    }
+    // Chưa ai xác nhận → gửi thông báo cho tất cả các user đang online để ai xác nhận thì nhận dữ liệu
+    promptOnlineUsersToClaimEsp(uniqueIds);
+    return null;
+  }
+
+  // 1b. Chỉ có 1 user đang online trên web dashboard
+  if (uniqueIds.length === 1) {
     try {
-      const activeUser = await User.findById(currentOnlineUid);
+      const activeUser = await User.findById(uniqueIds[0]);
       if (activeUser) return activeUser;
     } catch (_) {}
   }
@@ -131,10 +191,12 @@ async function findUserByTopic(topic) {
 io.on("connection", (socket) => {
   const userId = socket.handshake.query?.userId || socket.handshake.auth?.userId;
   if (userId) {
-    socket.join(`user_${userId}`);
-    activeOnlineUsers.set(socket.id, userId);
-    latestActiveUserId = userId;
-    console.log(`🟢 User ${userId} đã đăng nhập và vào phòng WebSockets: user_${userId}`);
+    const uid = String(userId);
+    socket.join(`user_${uid}`);
+    activeOnlineUsers.set(socket.id, uid);
+    latestActiveUserId = uid;
+    handleOnlineUsersChanged();
+    console.log(`🟢 User ${uid} đã đăng nhập và vào phòng WebSockets: user_${uid}`);
   } else {
     console.log("🟢 Có client kết nối WebSockets:", socket.id);
   }
@@ -142,15 +204,40 @@ io.on("connection", (socket) => {
   // Đăng ký userId khi client gửi event
   socket.on("registerUser", (uid) => {
     if (uid) {
-      socket.join(`user_${uid}`);
-      activeOnlineUsers.set(socket.id, uid);
-      latestActiveUserId = uid;
-      console.log(`🟢 Đã đăng ký socket ${socket.id} cho user: ${uid}`);
+      const idStr = String(uid);
+      socket.join(`user_${idStr}`);
+      activeOnlineUsers.set(socket.id, idStr);
+      latestActiveUserId = idStr;
+      handleOnlineUsersChanged();
+      console.log(`🟢 Đã đăng ký socket ${socket.id} cho user: ${idStr}`);
     }
+  });
+
+  // User bấm "Xác nhận" nhận dữ liệu từ ESP32 khi có nhiều người cùng online
+  socket.on("claimEspDevice", async (uid) => {
+    const idStr = String(uid || activeOnlineUsers.get(socket.id) || "");
+    if (!idStr) return;
+    confirmedEspUserId = idStr;
+    latestActiveUserId = idStr;
+    let displayName = "Người dùng";
+    try {
+      const u = await User.findById(idStr);
+      if (u) displayName = u.displayName || u.username;
+    } catch (_) {}
+    console.log(`✅ User [${displayName}] (${idStr}) đã xác nhận nhận tín hiệu từ ESP32.`);
+    const uniqueIds = getUniqueOnlineUserIds();
+    uniqueIds.forEach((onlineUid) => {
+      io.to(`user_${onlineUid}`).emit("espClaimed", {
+        userId: idStr,
+        displayName,
+        time: new Date().toISOString(),
+      });
+    });
   });
 
   socket.on("disconnect", () => {
     activeOnlineUsers.delete(socket.id);
+    handleOnlineUsersChanged();
     console.log("🔴 Thiết bị ngắt kết nối:", socket.id);
   });
 });

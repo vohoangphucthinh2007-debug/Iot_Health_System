@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AlertType = 'fall' | 'hr_high' | 'hr_low' | 'spo2_low';
+export type AlertType = 'fall' | 'hr_high' | 'hr_low' | 'spo2_low' | 'esp_claim';
 
 export interface AppNotification {
   id: string;

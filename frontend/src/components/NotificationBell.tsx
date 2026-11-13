@@ -73,6 +73,18 @@ export default function NotificationBell({ className = "" }: { className?: strin
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-bold text-slate-800 dark:text-white">{n.title}</div>
                       <div className="text-[13px] text-slate-600 dark:text-slate-300 mt-0.5">{n.message}</div>
+                      {n.type === "esp_claim" && (
+                        <button
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent("claim-esp-device"));
+                            remove(n.id);
+                            setOpen(false);
+                          }}
+                          className="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                        >
+                          Xác nhận nhận dữ liệu
+                        </button>
+                      )}
                       <div className="text-[11px] text-slate-400 mt-1">{timeAgo(n.time)}</div>
                     </div>
                     <button onClick={() => remove(n.id)} className="self-start text-slate-300 hover:text-red-500" aria-label="Xoá">
