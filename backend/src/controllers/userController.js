@@ -249,22 +249,108 @@ Chỉ trả về 1 JSON (không markdown): {"calories": <số nguyên kcal>, "di
   }
 };
 
+// Phân tích dự phòng cá nhân hoá (đảm bảo luôn phản hồi ngay cả khi Gemini quá tải)
+function buildLocalInsight(s, p) {
+  const bmi = p.height && p.weight ? Number((p.weight / Math.pow(p.height / 100, 2)).toFixed(1)) : null;
+  let overall = "Bình thường";
+  const warnings = [];
+
+  // Đánh giá nhịp tim
+  let hrText = "Chưa ghi nhận dữ liệu nhịp tim trong phiên đo hiện tại.";
+  if (s.avgHr > 0) {
+    if (s.avgHr > 110 || s.maxHr > 130) {
+      overall = "Cảnh báo";
+      warnings.push("nhịp tim cao");
+      hrText = `Nhịp tim trung bình ${s.avgHr} BPM (cao nhất ${s.maxHr || s.avgHr} BPM) đang ở mức cao. Bạn nên nghỉ ngơi, hít thở sâu và theo dõi thêm.`;
+    } else if (s.avgHr < 55) {
+      overall = "Cảnh báo";
+      warnings.push("nhịp tim thấp");
+      hrText = `Nhịp tim trung bình ${s.avgHr} BPM khá thấp so với mức thông thường (60–100 BPM).`;
+    } else {
+      overall = "Tốt";
+      hrText = `Nhịp tim trung bình ${s.avgHr} BPM (dao động ${s.minHr || s.avgHr}–${s.maxHr || s.avgHr} BPM) hoàn toàn ổn định và phù hợp với độ tuổi ${p.age ?? "của bạn"}.`;
+    }
+  }
+
+  // Đánh giá SpO2
+  let spo2Text = "Chưa ghi nhận dữ liệu SpO₂ trong phiên đo hiện tại.";
+  if (s.avgSpo2 > 0) {
+    const lowSpo2 = s.minSpo2 > 0 ? s.minSpo2 : s.avgSpo2;
+    if (s.avgSpo2 < 94 || lowSpo2 < 92) {
+      overall = "Cảnh báo";
+      warnings.push("SpO₂ thấp");
+      spo2Text = `Nồng độ oxy trong máu trung bình ${s.avgSpo2}% (thấp nhất ${lowSpo2}%) dưới ngưỡng khuyến nghị (95–100%). Cần nghỉ ngơi ở nơi thoáng khí.`;
+    } else {
+      if (overall !== "Cảnh báo") overall = "Tốt";
+      spo2Text = `Chỉ số SpO₂ trung bình đạt ${s.avgSpo2}% (thấp nhất ${lowSpo2}%), cho thấy khả năng bão hòa oxy trong máu rất tốt.`;
+    }
+  }
+
+  // Đánh giá vận động & calo
+  const localCal = s.calories > 0 ? s.calories : localCalories(s.steps, p).calories;
+  let actText = `Hôm nay bạn đã đi được ${s.steps} bước (~${s.distanceKm} km), tiêu thụ khoảng ${localCal} kcal.`;
+  if (s.steps >= 6000) {
+    actText += ` Mức vận động rất tích cực, đáp ứng tốt mục tiêu "${p.goal}".`;
+  } else if (s.steps >= 2000) {
+    actText += ` Mức vận động ở ngưỡng trung bình, hãy cố gắng duy trì thêm để đạt mục tiêu "${p.goal}".`;
+  } else {
+    actText += ` Lượng vận động còn ít, bạn nên đi bộ nhẹ nhàng thêm 15–30 phút để hỗ trợ mục tiêu "${p.goal}".`;
+  }
+
+  const bmiNote = bmi ? ` Chỉ số BMI hiện tại khoảng ${bmi} (${bmi < 18.5 ? "thiếu cân" : bmi < 23 ? "cân đối" : "thừa cân"}).` : "";
+  const summary = warnings.length > 0
+    ? `Phát hiện dấu hiệu ${warnings.join(" và ")}, bạn cần chú ý nghỉ ngơi và theo dõi sát các chỉ số sinh tồn.${bmiNote}`
+    : `Các chỉ số sinh tồn hôm nay nhìn chung ổn định, phù hợp với thể trạng${p.age ? ` tuổi ${p.age}` : ""} và mục tiêu "${p.goal}".${bmiNote}`;
+
+  const advice = [
+    s.steps < 5000
+      ? "Tăng cường đi bộ nhẹ nhàng thêm 2.000–3.000 bước trong ngày để cải thiện tuần hoàn máu."
+      : "Duy trì thói quen vận động đều đặn hiện tại và bổ sung đủ 1.5–2 lít nước mỗi ngày.",
+    warnings.length > 0
+      ? "Nghỉ ngơi ngay khi thấy tim đập nhanh, khó thở hoặc chóng mặt; nếu tình trạng kéo dài hãy đến cơ sở y tế kiểm tra."
+      : `Kết hợp chế độ dinh dưỡng cân bằng phù hợp với mục tiêu "${p.goal}" (cân nặng hiện tại ${p.weight ?? "--"} kg, cao ${p.height ?? "--"} cm).`,
+    "Đeo vòng tay ôm sát cổ tay và giữ cố định khi đo để cảm biến nhịp tim & SpO₂ đạt độ chính xác cao nhất.",
+  ];
+
+  return { overall, summary, heartRate: hrText, spo2: spo2Text, activity: actText, advice };
+}
+
 // POST /api/users/ai-insight  { avgHr, minHr, maxHr, avgSpo2, minSpo2, maxSpo2, steps, distanceKm, calories }
 export const getAiInsight = async (req, res) => {
   try {
     const user = req.user;
     const b = req.body || {};
-    const s = {
+    let s = {
       avgHr: toInt(b.avgHr), minHr: toInt(b.minHr), maxHr: toInt(b.maxHr),
       avgSpo2: toInt(b.avgSpo2), minSpo2: toInt(b.minSpo2), maxSpo2: toInt(b.maxSpo2),
       steps: toInt(b.steps), distanceKm: toInt(b.distanceKm), calories: toInt(b.calories),
     };
-    if (!s.avgHr && !s.avgSpo2 && !s.steps) {
-      return res.status(200).json({ empty: true, summary: "Chưa có dữ liệu đo để AI phân tích." });
-    }
-    const p = profileOf(user);
 
-    const key = `ins_${user._id}_${s.avgHr}_${s.avgSpo2}_${Math.round(s.steps / 100)}`;
+    // Nếu client chưa truyền số liệu, thử lấy từ DailyStat gần nhất của user trong DB
+    if (!s.avgHr && !s.avgSpo2 && !s.steps) {
+      const latestStat = await DailyStat.findOne({ userId: user._id }).sort({ date: -1 });
+      if (latestStat && (latestStat.count > 0 || latestStat.steps > 0)) {
+        const c = latestStat.count || 1;
+        s = {
+          avgHr: latestStat.count > 0 ? Math.round(latestStat.totalHr / c) : 0,
+          minHr: latestStat.minHr === 999 ? 0 : toInt(latestStat.minHr),
+          maxHr: toInt(latestStat.maxHr),
+          avgSpo2: latestStat.count > 0 ? Math.round(latestStat.totalSpo2 / c) : 0,
+          minSpo2: latestStat.minSpo2 === 100 && latestStat.count === 0 ? 0 : toInt(latestStat.minSpo2),
+          maxSpo2: toInt(latestStat.maxSpo2),
+          steps: toInt(latestStat.steps),
+          distanceKm: Math.round(toInt(latestStat.steps) * 0.0007),
+          calories: 0,
+        };
+      }
+    }
+
+    const p = profileOf(user);
+    if (!s.calories && s.steps > 0) {
+      s.calories = localCalories(s.steps, p).calories;
+    }
+
+    const key = `ins_${user._id}_${s.avgHr}_${s.avgSpo2}_${Math.round(s.steps / 100)}_${p.height}_${p.weight}_${p.age}`;
     const hit = aiCache.get(key);
     if (hit && Date.now() - hit.at < CACHE_MS) return res.status(200).json(hit.data);
 
@@ -277,17 +363,22 @@ Không chẩn đoán bệnh; nếu chỉ số bất thường hãy khuyên đi k
     let data;
     try {
       const ai = await askGeminiJSON(prompt);
+      const rawOverall = String(ai.overall || "");
+      const normOverall = rawOverall.includes("Cảnh báo") ? "Cảnh báo" : rawOverall.includes("Tốt") ? "Tốt" : "Bình thường";
+      const normAdvice = Array.isArray(ai.advice)
+        ? ai.advice.slice(0, 5).map(String)
+        : ai.advice ? [String(ai.advice)] : [];
       data = {
-        overall: ai.overall || "Bình thường",
-        summary: ai.summary || "",
+        overall: normOverall,
+        summary: ai.summary || rawOverall || "",
         heartRate: ai.heartRate || "",
         spo2: ai.spo2 || "",
         activity: ai.activity || "",
-        advice: Array.isArray(ai.advice) ? ai.advice.slice(0, 5).map(String) : [],
+        advice: normAdvice,
       };
     } catch (e) {
-      console.error("⚠️ Lỗi AI nhận định:", e.message);
-      return res.status(503).json({ message: "AI tạm thời không phản hồi, vui lòng thử lại sau.", detail: String(e.message).slice(0, 160) });
+      console.error("⚠️ Lỗi AI nhận định, chuyển sang phân tích dự phòng:", e.message);
+      data = buildLocalInsight(s, p);
     }
     aiCache.set(key, { at: Date.now(), data });
     return res.status(200).json(data);

@@ -13,16 +13,12 @@ import cron from "node-cron";
 import Report from "./models/Report.js";
 import DailyStat from "./models/DailyStat.js";
 import User from "./models/User.js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { askGeminiJSON } from "./lib/gemini.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-
-// Khởi tạo Gemini AI — API key chỉ ở .env, không bao giờ lộ ra client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
 // Tạo HTTP server từ app Express
 const server = http.createServer(app);
@@ -592,13 +588,7 @@ YÊU CẦU ĐẦU RA:
   "warning_flag": true | false
 }`;
 
-  const result = await geminiModel.generateContent(prompt);
-  const rawText = result.response.text().trim();
-
-  // Parse JSON — xử lý trường hợp AI vẫn wrap trong ```json
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("AI không trả về JSON hợp lệ");
-  return JSON.parse(jsonMatch[0]);
+  return await askGeminiJSON(prompt);
 }
 
 // ==========================================

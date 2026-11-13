@@ -345,10 +345,18 @@ export function HealthDashboardPage() {
     setAiLoading(true);
     setAiError("");
     try {
+      const hrVal = avgHr || heartRate || 0;
+      const spo2Val = avgSpo2 || spO2 || 0;
       const res = await api.post("users/ai-insight", {
-        avgHr, minHr: sessionStats.minHr === 999 ? 0 : sessionStats.minHr, maxHr: sessionStats.maxHr,
-        avgSpo2, minSpo2: sessionStats.minSpo2 === 100 && sessionStats.count === 0 ? 0 : sessionStats.minSpo2, maxSpo2: sessionStats.maxSpo2,
-        steps, distanceKm: typeof distanceKm === 'number' ? distanceKm : 0, calories: calories ?? 0,
+        avgHr: hrVal,
+        minHr: sessionStats.minHr === 999 ? hrVal : sessionStats.minHr,
+        maxHr: sessionStats.maxHr || hrVal,
+        avgSpo2: spo2Val,
+        minSpo2: sessionStats.minSpo2 === 100 && sessionStats.count === 0 ? spo2Val : sessionStats.minSpo2,
+        maxSpo2: sessionStats.maxSpo2 || spo2Val,
+        steps,
+        distanceKm: typeof distanceKm === 'number' ? distanceKm : 0,
+        calories: calories ?? 0,
       });
       if (res.data?.empty) setAiError(res.data.summary || "Chưa có dữ liệu để phân tích.");
       else setAiInsight(res.data);
@@ -359,9 +367,9 @@ export function HealthDashboardPage() {
     }
   };
 
-  // Tự động nhận định lần đầu khi mở tab Thống kê nếu đã có dữ liệu
+  // Tự động nhận định lần đầu khi mở tab Thống kê
   useEffect(() => {
-    if (activeTab === 'statistics' && !aiInsight && !aiLoading && sessionStats.count > 0) runAiInsight();
+    if (activeTab === 'statistics' && !aiInsight && !aiLoading) runAiInsight();
   }, [activeTab, sessionStats.count > 0]);
 
   return (
