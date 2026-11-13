@@ -31,7 +31,7 @@ function App() {
 
   return (
     <>
-      <Toaster richColors />
+      <Toaster richColors position="top-center" />
       <BrowserRouter>
         {/* Lắng nghe cảnh báo té ngã / chỉ số bất thường ở mọi trang */}
         <AlertCenter />

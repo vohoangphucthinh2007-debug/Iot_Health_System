@@ -44,13 +44,6 @@ function vibrate() {
   }
 }
 
-function shakeScreen() {
-  document.body.classList.remove("alert-shake");
-  void document.body.offsetWidth; // restart animation
-  document.body.classList.add("alert-shake");
-  setTimeout(() => document.body.classList.remove("alert-shake"), 3500);
-}
-
 function systemNotify(title: string, body: string) {
   try {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -77,6 +70,7 @@ export function AlertCenter() {
   const sirenStop = useRef<(() => void) | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [claimPrompt, setClaimPrompt] = useState<any>(null);
+  const [shaking, setShaking] = useState(false);
 
   // Mở khoá âm thanh sau lần chạm đầu tiên + xin quyền thông báo hệ thống
   useEffect(() => {
@@ -110,9 +104,10 @@ export function AlertCenter() {
         message,
         time: data?.time || new Date().toISOString(),
       });
-      toast.error(`🚨 ${title}`, { description: message, duration: 10000 });
+      toast.error(`🚨 ${title}`, { description: message, duration: 8000 });
       vibrate();
-      shakeScreen();
+      setShaking(true);
+      setTimeout(() => setShaking(false), 3500);
       playSiren(5);
       systemNotify(title, message);
     };
@@ -123,7 +118,6 @@ export function AlertCenter() {
     // Khi có >= 2 user cùng truy cập và ESP32 gửi tín hiệu → hiện thông báo xác nhận
     socket.on("espClaimPrompt", (d) => {
       setClaimPrompt(d);
-      // Lưu vào chuông nhưng không bật popup báo động đỏ
       const store = useNotificationStore.getState();
       const exists = store.notifications.some((n) => n.type === "esp_claim" && !n.read);
       if (!exists) {
@@ -144,7 +138,7 @@ export function AlertCenter() {
       }
       toast.info("📡 Xác nhận kết nối ESP32", {
         description: "Có nhiều tài khoản đang mở trang. Hãy xác nhận nếu bạn đang sử dụng thiết bị.",
-        duration: 8000,
+        duration: 6000,
       });
     });
 
@@ -194,36 +188,37 @@ export function AlertCenter() {
     <>
       {/* Popup xác nhận nhận tín hiệu ESP32 khi có >= 2 user cùng truy cập */}
       {claimPrompt && !activeAlert && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-7 text-center shadow-2xl border-2 border-blue-500">
+        <div className="fixed inset-0 w-screen h-[100dvh] z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-[360px] sm:max-w-md mx-auto rounded-3xl bg-white dark:bg-slate-900 p-6 sm:p-7 text-center shadow-2xl border-2 border-blue-500">
             <button
               onClick={() => setClaimPrompt(null)}
-              className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              className="absolute top-3.5 right-3.5 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white"
               aria-label="Đóng"
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/15 text-blue-600 animate-pulse">
-              <Cpu className="h-9 w-9" />
+            <div className="mx-auto mb-3.5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-blue-500/15 text-blue-600 animate-pulse">
+              <Cpu className="h-8 w-8 sm:h-9 sm:w-9" />
             </div>
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white px-4 leading-snug">
               {claimPrompt.title || "Xác nhận kết nối thiết bị ESP32"}
             </h2>
-            <p className="mt-3 text-[14px] text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p className="mt-2.5 text-[13px] sm:text-[14px] text-slate-600 dark:text-slate-300 leading-relaxed">
               {claimPrompt.message}
             </p>
-            <div className="mt-6 flex gap-3">
+            <div className="mt-5 flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3">
               <button
                 onClick={() => setClaimPrompt(null)}
-                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-3 font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="w-full sm:flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 sm:py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               >
                 Không phải tôi
               </button>
               <button
                 onClick={confirmClaimEsp}
-                className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-white font-bold flex items-center justify-center gap-1.5"
+                className="w-full sm:flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 sm:py-3 text-sm text-white font-bold flex items-center justify-center gap-1.5"
               >
-                <Check className="w-4 h-4" /> Xác nhận nhận dữ liệu
+                <Check className="w-4 h-4 shrink-0" />
+                <span>Xác nhận nhận dữ liệu</span>
               </button>
             </div>
           </div>
@@ -235,20 +230,36 @@ export function AlertCenter() {
         const meta = ALERT_META[activeAlert.type] || ALERT_META.fall;
         const Icon = meta.Icon;
         return (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-red-900/70 backdrop-blur-sm p-4 alert-flash">
-            <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 p-7 text-center shadow-2xl border-4" style={{ borderColor: meta.color }}>
-              <button onClick={dismiss} className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white" aria-label="Đóng">
-                <X className="w-5 h-5" />
-              </button>
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full animate-pulse" style={{ backgroundColor: meta.color + "22", color: meta.color }}>
-                <Icon className="h-11 w-11" />
-              </div>
-              <h2 className="text-2xl font-extrabold" style={{ color: meta.color }}>{activeAlert.title}</h2>
-              <p className="mt-3 text-[15px] text-slate-700 dark:text-slate-200">{activeAlert.message}</p>
-              <p className="mt-2 text-xs text-slate-400">{new Date(activeAlert.time).toLocaleString("vi-VN")}</p>
+          <div className="fixed inset-0 w-screen h-[100dvh] z-[9999] flex items-center justify-center bg-red-900/75 backdrop-blur-sm p-4 alert-flash">
+            <div
+              className={`relative w-full max-w-[360px] sm:max-w-md mx-auto rounded-3xl bg-white dark:bg-slate-900 p-6 sm:p-7 text-center shadow-2xl border-4 ${shaking ? "alert-shake" : ""}`}
+              style={{ borderColor: meta.color }}
+            >
               <button
                 onClick={dismiss}
-                className="mt-6 w-full rounded-xl py-3 text-white font-bold text-base"
+                className="absolute top-3.5 right-3.5 p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                aria-label="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div
+                className="mx-auto mb-3.5 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full animate-pulse"
+                style={{ backgroundColor: meta.color + "22", color: meta.color }}
+              >
+                <Icon className="h-9 w-9 sm:h-11 sm:w-11" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-extrabold px-4 leading-snug" style={{ color: meta.color }}>
+                {activeAlert.title}
+              </h2>
+              <p className="mt-2.5 text-[14px] sm:text-[15px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                {activeAlert.message}
+              </p>
+              <p className="mt-2 text-xs text-slate-400">
+                {new Date(activeAlert.time).toLocaleString("vi-VN")}
+              </p>
+              <button
+                onClick={dismiss}
+                className="mt-5 w-full rounded-xl py-3 text-white font-bold text-base shadow-md"
                 style={{ backgroundColor: meta.color }}
               >
                 Đã biết

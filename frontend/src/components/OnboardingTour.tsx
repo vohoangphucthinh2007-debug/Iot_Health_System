@@ -116,8 +116,8 @@ export default function OnboardingTour({ onStepTab }: { onStepTab?: (t: Tab) => 
   const inputCls = "w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2.5 text-[15px] outline-none focus:border-blue-500";
 
   return (
-    <div className="fixed inset-0 z-[9000] flex items-end sm:items-center justify-center bg-black/55 p-3 sm:p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xl p-6">
+    <div className="fixed inset-0 w-screen h-[100dvh] z-[9000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="w-full max-w-[360px] sm:max-w-md mx-auto rounded-3xl bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="text-xs font-semibold text-slate-400">Bước {step + 1}/{total}</div>
           {!isForm ? (

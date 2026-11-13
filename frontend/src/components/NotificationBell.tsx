@@ -50,7 +50,7 @@ export default function NotificationBell({ className = "" }: { className?: strin
       </button>
 
       {open && (
-        <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-16 sm:top-full sm:mt-2 sm:w-[360px] z-[100] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden text-left">
+        <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-[70px] sm:top-full sm:mt-2 mx-auto sm:mx-0 max-w-[380px] sm:w-[360px] z-[100] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl overflow-hidden text-left">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
             <div className="font-bold text-slate-800 dark:text-white">Thông báo</div>
             <div className="flex gap-3 text-xs text-slate-500">
