@@ -235,6 +235,13 @@ io.on("connection", (socket) => {
     });
   });
 
+  // User bấm "Huỷ cảnh báo (Nhầm lẫn)" trong 10s đếm ngược trên web
+  socket.on("cancelPendingAlert", (uid) => {
+    const idStr = String(uid || activeOnlineUsers.get(socket.id) || "");
+    if (!idStr) return;
+    cancelAllPendingAlertsForUser(idStr, "Người đeo đã xác nhận nhầm lẫn");
+  });
+
   socket.on("disconnect", () => {
     activeOnlineUsers.delete(socket.id);
     handleOnlineUsersChanged();
@@ -259,42 +266,181 @@ export function getLocalDateString(d = new Date()) {
 }
 
 // ==========================================
-// CẢNH BÁO CHỈ SỐ BẤT THƯỜNG (nhịp tim / SpO2)
+// CẢNH BÁO TÉ NGÃ & CHỈ SỐ BẤT THƯỜNG (CÓ 10 GIÂY XÁC NHẬN NHẦM LẪN)
 // ==========================================
 const HR_HIGH = 120, HR_LOW = 40, SPO2_LOW = 90;
-const CONSECUTIVE_NEEDED = 3;      // cần 3 lần đo liên tiếp bất thường mới báo (tránh nhiễu cảm biến)
+const VERIFY_DELAY_MS = 10 * 1000;   // 10 giây chờ người đeo xác nhận có phải nhầm lẫn không
 const ALERT_COOLDOWN_MS = 60 * 1000; // mỗi loại cảnh báo tối đa 1 lần/phút/user
-const anomalyCounters = new Map();   // `${userId}_${type}` → số lần liên tiếp
+
+// Quản lý trạng thái chờ 10s cho nhịp tim / SpO2: `${userId}_${type}` → { startAt, suppressedUntil }
+const anomalyPending = new Map();
 const lastAlertAt = new Map();       // `${userId}_${type}` → timestamp
 
-function checkHealthAnomaly(user, hr, spo2) {
-  if (user.settings && user.settings.healthAlerts === false) return;
+// Quản lý trạng thái chờ 10s cho cảnh báo té ngã từ ESP32: `userId` → { timer, alertData, startedAt, lastEspState }
+const pendingFallAlerts = new Map();
+
+function isNormalEspState(stateStr) {
+  if (!stateStr) return false;
+  const s = String(stateStr).toLowerCase();
+  return s === "idle" || s === "normal" || s === "monitoring" || s === "ok" || s === "cancelled";
+}
+
+function cancelAllPendingAlertsForUser(uid, reason = "Đã huỷ cảnh báo") {
+  const idStr = String(uid);
+  // 1. Huỷ cảnh báo té ngã đang chờ 10s
+  const pendingFall = pendingFallAlerts.get(idStr);
+  if (pendingFall) {
+    clearTimeout(pendingFall.timer);
+    pendingFallAlerts.delete(idStr);
+  }
+  // 2. Huỷ các cảnh báo nhịp tim / SpO2 đang đếm ngược 10s (tạm ngưng 30s để không bật lại ngay)
+  for (const t of ["hr_high", "hr_low", "spo2_low"]) {
+    const key = `${idStr}_${t}`;
+    anomalyPending.set(key, { startAt: null, suppressedUntil: Date.now() + 30000 });
+  }
+  io.to(`user_${idStr}`).emit("alertCountdownCancelled", { reason });
+  console.log(`🛑 Đã huỷ cảnh báo trong 10s xác nhận cho user ${idStr}: ${reason}`);
+}
+
+function scheduleFallAlertWith10sVerify(user, alertPayload) {
   const uid = String(user._id);
-  const checks = [
-    { type: "hr_high", bad: hr > HR_HIGH, title: "Nhịp tim tăng cao bất thường",
-      message: `Nhịp tim hiện tại ${hr} BPM (vượt ngưỡng ${HR_HIGH} BPM). Hãy nghỉ ngơi, hít thở sâu; nếu kéo dài hoặc kèm khó chịu hãy liên hệ y tế.` },
-    { type: "hr_low", bad: hr > 0 && hr < HR_LOW, title: "Nhịp tim thấp bất thường",
-      message: `Nhịp tim hiện tại ${hr} BPM (dưới ngưỡng ${HR_LOW} BPM). Nếu bạn thấy chóng mặt, mệt hoặc choáng hãy liên hệ y tế.` },
-    { type: "spo2_low", bad: spo2 > 0 && spo2 < SPO2_LOW, title: "SpO₂ thấp bất thường",
-      message: `SpO₂ hiện tại ${spo2}% (dưới ngưỡng ${SPO2_LOW}%). Hãy kiểm tra vòng tay đeo đúng vị trí; nếu khó thở hãy đi khám ngay.` },
-  ];
-  for (const c of checks) {
-    const key = `${uid}_${c.type}`;
-    if (!c.bad) { anomalyCounters.set(key, 0); continue; }
-    const n = (anomalyCounters.get(key) || 0) + 1;
-    anomalyCounters.set(key, n);
-    if (n < CONSECUTIVE_NEEDED) continue;
-    if (Date.now() - (lastAlertAt.get(key) || 0) < ALERT_COOLDOWN_MS) continue;
-    lastAlertAt.set(key, Date.now());
-    console.log(`🚨 Cảnh báo ${c.type} cho user ${user.username}: HR=${hr}, SpO2=${spo2}`);
-    io.to(`user_${uid}`).emit("healthAlert", {
-      id: `${c.type}_${Date.now()}`,
-      type: c.type,
-      title: c.title,
-      message: c.message,
-      hr, spo2,
+  const stateStr = String(alertPayload.state || "Unknown");
+
+  // Nếu ESP32 báo trạng thái đã về Idle / Normal → người đeo đã bấm huỷ trên vòng tay
+  if (isNormalEspState(stateStr)) {
+    const existing = pendingFallAlerts.get(uid);
+    if (existing) {
+      clearTimeout(existing.timer);
+      pendingFallAlerts.delete(uid);
+      io.to(`user_${uid}`).emit("alertCountdownCancelled", {
+        type: "fall",
+        reason: "Người đeo đã xác nhận nhầm lẫn trên thiết bị ESP32",
+      });
+      console.log(`✅ User ${user.username} đã huỷ cảnh báo ngã trên ESP32 trong thời gian 10s.`);
+    }
+    return;
+  }
+
+  // Nếu đang có bộ đếm 10s cho lần ngã này rồi → chỉ cập nhật thông tin mới nhất (ví dụ Countdown -> Alarm)
+  const existing = pendingFallAlerts.get(uid);
+  if (existing) {
+    existing.alertData = { ...existing.alertData, ...alertPayload };
+    existing.lastEspState = stateStr;
+    return;
+  }
+
+  console.log(`⏳ Bắt đầu đếm ngược 10s xác nhận cảnh báo ngã cho user ${user.username}...`);
+  io.to(`user_${uid}`).emit("alertCountdown", {
+    type: "fall",
+    title: "Phát hiện nghi ngờ té ngã",
+    message: "Hệ thống sẽ phát cảnh báo sau 10 giây. Nếu là nhầm lẫn, hãy bấm nút huỷ trên vòng tay hoặc bấm Huỷ bên dưới.",
+    seconds: 10,
+    startedAt: Date.now(),
+  });
+
+  const timer = setTimeout(() => {
+    const item = pendingFallAlerts.get(uid);
+    pendingFallAlerts.delete(uid);
+    if (!item) return;
+
+    // Sau 10s vẫn chưa bị huỷ → chính thức phát cảnh báo lên web
+    const a = item.alertData || alertPayload;
+    console.log(`🚨 [SAU 10S] Phát cảnh báo ngã chính thức cho user ${user.username}:`, a);
+    io.to(`user_${uid}`).emit("fallAlert", {
+      id: `fall_${Date.now()}`,
+      type: "fall",
+      title: "Phát hiện té ngã!",
+      message: `Thiết bị xác nhận té ngã sau 10s không phản hồi${a.reason ? ` (${a.reason})` : ""}. Hãy kiểm tra ngay tình trạng người đeo vòng!`,
+      state: a.state || "Alarm",
+      reason: a.reason || "",
+      falls: a.falls || 0,
       time: new Date().toISOString(),
     });
+  }, VERIFY_DELAY_MS);
+
+  pendingFallAlerts.set(uid, {
+    timer,
+    alertData: alertPayload,
+    startedAt: Date.now(),
+    lastEspState: stateStr,
+  });
+}
+
+function checkHealthAnomaly(user, hr, spo2, espState) {
+  const uid = String(user._id);
+
+  // Nếu đang có cảnh báo ngã chờ 10s mà telemetry từ ESP32 báo state đã về Idle/Normal (sau ít nhất 1.5s) → huỷ cảnh báo ngã
+  const pendingFall = pendingFallAlerts.get(uid);
+  if (pendingFall && espState && isNormalEspState(espState) && Date.now() - pendingFall.startedAt > 1500) {
+    clearTimeout(pendingFall.timer);
+    pendingFallAlerts.delete(uid);
+    io.to(`user_${uid}`).emit("alertCountdownCancelled", {
+      type: "fall",
+      reason: "Người đeo đã bấm huỷ cảnh báo trên thiết bị ESP32",
+    });
+    console.log(`✅ Telemetry báo state=${espState}: Đã huỷ cảnh báo ngã trong 10s cho user ${user.username}.`);
+  }
+
+  if (user.settings && user.settings.healthAlerts === false) return;
+
+  const now = Date.now();
+  const checks = [
+    { type: "hr_high", bad: hr > HR_HIGH, title: "Nhịp tim tăng cao bất thường",
+      message: `Nhịp tim duy trì ở mức cao ${hr} BPM (vượt ngưỡng ${HR_HIGH} BPM) liên tục hơn 10 giây. Hãy nghỉ ngơi, hít thở sâu; nếu kéo dài hoặc kèm khó chịu hãy liên hệ y tế.` },
+    { type: "hr_low", bad: hr > 0 && hr < HR_LOW, title: "Nhịp tim thấp bất thường",
+      message: `Nhịp tim duy trì ở mức thấp ${hr} BPM (dưới ngưỡng ${HR_LOW} BPM) liên tục hơn 10 giây. Nếu bạn thấy chóng mặt, mệt hoặc choáng hãy liên hệ y tế.` },
+    { type: "spo2_low", bad: spo2 > 0 && spo2 < SPO2_LOW, title: "SpO₂ thấp bất thường",
+      message: `SpO₂ duy trì ở mức thấp ${spo2}% (dưới ngưỡng ${SPO2_LOW}%) liên tục hơn 10 giây. Hãy kiểm tra vòng tay đeo đúng vị trí; nếu khó thở hãy đi khám ngay.` },
+  ];
+
+  for (const c of checks) {
+    const key = `${uid}_${c.type}`;
+    const state = anomalyPending.get(key) || { startAt: null, suppressedUntil: 0 };
+
+    if (!c.bad) {
+      // Chỉ số đã về bình thường trước khi hết 10s → huỷ đếm ngược, không báo động
+      if (state.startAt) {
+        anomalyPending.set(key, { startAt: null, suppressedUntil: state.suppressedUntil });
+        io.to(`user_${uid}`).emit("alertCountdownCancelled", {
+          type: c.type,
+          reason: "Chỉ số đã ổn định trở lại trong 10 giây xác minh",
+        });
+      }
+      continue;
+    }
+
+    // Nếu người dùng vừa bấm "Nhầm lẫn" hoặc đang trong thời gian cooldown
+    if (now < state.suppressedUntil) continue;
+    if (now - (lastAlertAt.get(key) || 0) < ALERT_COOLDOWN_MS) continue;
+
+    // Bắt đầu đếm ngược 10s khi mới phát hiện bất thường
+    if (!state.startAt) {
+      anomalyPending.set(key, { startAt: now, suppressedUntil: 0 });
+      console.log(`⏳ Bắt đầu chờ 10s xác nhận ${c.type} cho user ${user.username} (HR=${hr}, SpO2=${spo2})...`);
+      io.to(`user_${uid}`).emit("alertCountdown", {
+        type: c.type,
+        title: `Đang kiểm tra: ${c.title}`,
+        message: `Phát hiện chỉ số bất thường (HR: ${hr} BPM, SpO₂: ${spo2}%). Hệ thống sẽ báo động nếu tình trạng còn tiếp diễn sau 10 giây.`,
+        seconds: 10,
+        startedAt: now,
+      });
+      continue;
+    }
+
+    // Đã qua đủ 10 giây mà cảnh báo vẫn còn tiếp diễn → phát cảnh báo chính thức trên web
+    if (now - state.startAt >= VERIFY_DELAY_MS) {
+      anomalyPending.set(key, { startAt: null, suppressedUntil: 0 });
+      lastAlertAt.set(key, now);
+      console.log(`🚨 [SAU 10S] Cảnh báo ${c.type} cho user ${user.username}: HR=${hr}, SpO2=${spo2}`);
+      io.to(`user_${uid}`).emit("healthAlert", {
+        id: `${c.type}_${now}`,
+        type: c.type,
+        title: c.title,
+        message: c.message,
+        hr, spo2,
+        time: new Date().toISOString(),
+      });
+    }
   }
 }
 
@@ -334,8 +480,8 @@ mqttClient.on("message", async (topic, message) => {
         });
       }
 
-      // Phát hiện chỉ số bất thường → gửi cảnh báo riêng cho user này
-      checkHealthAnomaly(targetUser, hr, spo2);
+      // Phát hiện chỉ số bất thường (chờ 10s xác nhận trước khi báo lên web)
+      checkHealthAnomaly(targetUser, hr, spo2, d.state);
 
       // Lưu vào DB nháp theo từng user và từng ngày riêng biệt
       if (hr > 0 && spo2 > 0) {
@@ -356,23 +502,14 @@ mqttClient.on("message", async (topic, message) => {
     }
   }
 
-  // ── Fall Alert: cảnh báo ngã từ ESP32 ─────────────────────────────────
+  // ── Fall Alert: cảnh báo ngã từ ESP32 (chờ 10s xác nhận nhầm lẫn) ──────
   if (topic.endsWith("/fall/alert")) {
     try {
       const alert = JSON.parse(message.toString());
       const targetUser = await findUserByTopic(topic);
       if (targetUser) {
-        console.log(`🚨 Cảnh báo ngã cho user ${targetUser.username}:`, alert);
-        io.to(`user_${targetUser._id}`).emit("fallAlert", {
-          id: `fall_${Date.now()}`,
-          type: "fall",
-          title: "Phát hiện té ngã!",
-          message: `Thiết bị phát hiện té ngã${alert.reason ? ` (${alert.reason})` : ""}. Hãy kiểm tra ngay tình trạng người đeo vòng.`,
-          state: alert.state || "Unknown",
-          reason: alert.reason || "",
-          falls: alert.falls || 0,
-          time: new Date().toISOString(),
-        });
+        console.log(`📡 Nhận tín hiệu fall/alert từ ESP32 cho user ${targetUser.username}:`, alert);
+        scheduleFallAlertWith10sVerify(targetUser, alert);
       }
     } catch (e) {
       console.error("[-] Lỗi xử lý MQTT fall alert:", e);

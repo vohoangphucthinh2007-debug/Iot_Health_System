@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
-import { AlertTriangle, HeartPulse, Wind, Cpu, X, Check } from "lucide-react";
+import { AlertTriangle, HeartPulse, Wind, Cpu, X, Check, ShieldAlert } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useNotificationStore, type AlertType } from "@/stores/useNotificationStore";
 
@@ -61,7 +61,8 @@ export const ALERT_META: Record<AlertType, { color: string; Icon: any }> = {
 };
 
 /**
- * Lắng nghe cảnh báo từ ESP32 và yêu cầu xác nhận thiết bị khi có >= 2 tài khoản cùng truy cập.
+ * Lắng nghe cảnh báo từ ESP32 (sau 10s xác minh nhầm lẫn)
+ * và yêu cầu xác nhận thiết bị khi có >= 2 tài khoản cùng truy cập.
  */
 export function AlertCenter() {
   const user = useAuthStore((s) => s.user);
@@ -71,6 +72,9 @@ export function AlertCenter() {
   const socketRef = useRef<Socket | null>(null);
   const [claimPrompt, setClaimPrompt] = useState<any>(null);
   const [shaking, setShaking] = useState(false);
+
+  // Đếm ngược 10s để người đeo xác nhận có phải nhầm lẫn không trước khi báo động
+  const [countdownInfo, setCountdownInfo] = useState<{ title: string; message: string; remaining: number } | null>(null);
 
   // Mở khoá âm thanh sau lần chạm đầu tiên + xin quyền thông báo hệ thống
   useEffect(() => {
@@ -85,6 +89,19 @@ export function AlertCenter() {
     return () => window.removeEventListener("pointerdown", unlock);
   }, []);
 
+  // Giảm bộ đếm 10s mỗi giây trên giao diện
+  useEffect(() => {
+    if (!countdownInfo) return;
+    if (countdownInfo.remaining <= 0) {
+      setCountdownInfo(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      setCountdownInfo((prev) => (prev ? { ...prev, remaining: prev.remaining - 1 } : null));
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [countdownInfo]);
+
   useEffect(() => {
     if (!user?._id) return;
     const raw = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
@@ -94,6 +111,8 @@ export function AlertCenter() {
     socket.on("connect", () => socket.emit("registerUser", user._id));
 
     const handle = (data: any, fallbackType: AlertType) => {
+      // Khi cảnh báo chính thức nổ ra (sau 10s) → tắt thanh đếm ngược và bật báo động
+      setCountdownInfo(null);
       const type: AlertType = data?.type || fallbackType;
       const title = data?.title || "Cảnh báo sức khoẻ";
       const message = data?.message || "";
@@ -114,6 +133,23 @@ export function AlertCenter() {
 
     socket.on("fallAlert", (d) => handle(d, "fall"));
     socket.on("healthAlert", (d) => handle(d, "hr_high"));
+
+    // Nhận tín hiệu bắt đầu đếm ngược 10s xác nhận nhầm lẫn
+    socket.on("alertCountdown", (d) => {
+      setCountdownInfo({
+        title: d?.title || "Đang xác minh cảnh báo (10s)",
+        message: d?.message || "Nếu là nhầm lẫn, hãy bấm nút trên vòng tay hoặc bấm Huỷ bên dưới.",
+        remaining: Number(d?.seconds) || 10,
+      });
+    });
+
+    // Khi người đeo đã bấm huỷ trên ESP32 hoặc chỉ số đã về bình thường trong 10s
+    socket.on("alertCountdownCancelled", (d) => {
+      setCountdownInfo(null);
+      if (d?.reason) {
+        toast.info(`✅ ${d.reason}`, { duration: 4000 });
+      }
+    });
 
     // Khi có >= 2 user cùng truy cập và ESP32 gửi tín hiệu → hiện thông báo xác nhận
     socket.on("espClaimPrompt", (d) => {
@@ -162,6 +198,8 @@ export function AlertCenter() {
       window.removeEventListener("claim-esp-device", onClaimFromBell);
       socket.off("fallAlert");
       socket.off("healthAlert");
+      socket.off("alertCountdown");
+      socket.off("alertCountdownCancelled");
       socket.off("espClaimPrompt");
       socket.off("espClaimed");
       socket.disconnect();
@@ -184,8 +222,41 @@ export function AlertCenter() {
     setClaimPrompt(null);
   };
 
+  const cancelFalseAlarm = () => {
+    if (socketRef.current && user?._id) {
+      socketRef.current.emit("cancelPendingAlert", user._id);
+    }
+    setCountdownInfo(null);
+  };
+
   return (
     <>
+      {/* Thanh đếm ngược 10s xác nhận nhầm lẫn (chưa phát còi/rung) */}
+      {countdownInfo && !activeAlert && (
+        <div className="fixed inset-x-3 top-[74px] mx-auto max-w-[420px] z-[9995] rounded-2xl bg-amber-50 dark:bg-slate-900 border-2 border-amber-500 p-4 shadow-xl">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center font-extrabold text-sm">
+              {countdownInfo.remaining}s
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="truncate">{countdownInfo.title}</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                {countdownInfo.message}
+              </p>
+              <button
+                onClick={cancelFalseAlarm}
+                className="mt-2.5 w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 px-3 transition-colors"
+              >
+                Nhầm lẫn — Huỷ cảnh báo ({countdownInfo.remaining}s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Popup xác nhận nhận tín hiệu ESP32 khi có >= 2 user cùng truy cập */}
       {claimPrompt && !activeAlert && (
         <div className="fixed inset-0 w-screen h-[100dvh] z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
