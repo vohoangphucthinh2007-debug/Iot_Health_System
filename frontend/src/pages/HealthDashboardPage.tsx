@@ -274,6 +274,10 @@ export function HealthDashboardPage() {
   }, [activeTab, user?._id]);
 
   const handleSaveProfile = async () => {
+    if (!profileData.dob || !profileData.height || !profileData.weight) {
+      alert("Vui lòng nhập đầy đủ Ngày sinh (Tuổi), Chiều cao và Cân nặng (bắt buộc)!");
+      return;
+    }
     setIsSavingProfile(true);
     try {
       const res = await api.put("users/profile", profileData);

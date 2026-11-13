@@ -50,6 +50,10 @@ export default function ProfilePage() {
 
   // Hàm Lưu thay đổi gọi API
   const handleSaveProfile = async () => {
+    if (!profileData.dob || !profileData.height || !profileData.weight) {
+      toast.error("Vui lòng nhập đầy đủ Ngày sinh (Tuổi), Chiều cao và Cân nặng (bắt buộc)!");
+      return;
+    }
     setIsSavingProfile(true);
     try {
       await api.put("users/profile", profileData);
