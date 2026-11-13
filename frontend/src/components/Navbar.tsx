@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, ActivitySquare, LogOut, Home, BookOpen, X, Bell, Shield, Moon, Sun } from "lucide-react";
+import { User, ActivitySquare, LogOut, Home, BookOpen, X, Shield, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router"; 
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -9,7 +9,7 @@ import { useSettingsStore } from "@/stores/useSettingsStore";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { Eye, EyeOff, Lock, Loader2 } from "lucide-react";
-import { useNotificationStore } from "@/stores/useNotificationStore";
+import NotificationBell from "@/components/NotificationBell";
 
 const SecurityModal = ({ onClose }: { onClose: () => void }) => {
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -106,7 +106,6 @@ const SecurityModal = ({ onClose }: { onClose: () => void }) => {
 export default function Navbar() {
   const { user, signOut } = useAuthStore();
   const { darkMode, toggleSetting } = useSettingsStore();
-  const { hasUnread, setHasUnread } = useNotificationStore();
   const [showAppGuide, setShowAppGuide] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -175,17 +174,9 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center gap-2 sm:gap-3">
-                {/* Nút chuông thông báo (Dạng hình vuông bo góc) */}
-                <button 
-                  onClick={() => {
-                    setHasUnread(false);
-                    toast.success("Bạn không có thông báo mới nào");
-                  }}
-                  className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm hover:shadow"
-                >
-                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                  {hasUnread && <span className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>}
-                </button>
+                {/* Chuông thông báo: bấm để xem chi tiết các cảnh báo */}
+                <NotificationBell className="w-8 h-8 sm:w-10 sm:h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm hover:shadow" />
+
 
                 {/* Avatar tròn chứa chữ cái đầu & Dropdown menu */}
                 <div className="relative group">

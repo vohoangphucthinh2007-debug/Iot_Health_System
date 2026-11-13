@@ -11,6 +11,7 @@ import GuidePage from "@/pages/GuidePage";
 
 // Layout dùng chung
 import Navbar from "@/components/Navbar";
+import AlertCenter from "@/components/AlertCenter";
 
 import { Toaster } from "sonner";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -32,6 +33,8 @@ function App() {
     <>
       <Toaster richColors />
       <BrowserRouter>
+        {/* Lắng nghe cảnh báo té ngã / chỉ số bất thường ở mọi trang */}
+        <AlertCenter />
         {/* ĐẶT NAVBAR Ở ĐÂY: Nó sẽ luôn nằm trên cùng mọi trang! */}
         <Navbar />
 

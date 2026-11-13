@@ -315,3 +315,23 @@
     }
   }
 }
+
+/* ===== Hi?u ?ng c?nh báo kh?n c?p ===== */
+@keyframes alert-shake-kf {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-12px, -6px) rotate(-0.6deg); }
+  20% { transform: translate(12px, 6px) rotate(0.6deg); }
+  30% { transform: translate(-10px, 8px) rotate(-0.5deg); }
+  40% { transform: translate(10px, -8px) rotate(0.5deg); }
+  50% { transform: translate(-8px, -4px); }
+  60% { transform: translate(8px, 4px); }
+  70% { transform: translate(-6px, 6px); }
+  80% { transform: translate(6px, -6px); }
+  90% { transform: translate(-3px, 3px); }
+}
+.alert-shake { animation: alert-shake-kf 0.5s linear 7; }
+@keyframes alert-flash-kf {
+  0%, 100% { background-color: rgba(127, 29, 29, 0.70); }
+  50% { background-color: rgba(220, 38, 38, 0.80); }
+}
+.alert-flash { animation: alert-flash-kf 0.8s ease-in-out infinite; }

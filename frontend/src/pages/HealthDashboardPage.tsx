@@ -9,13 +9,13 @@ import {
 import {
   Home, HeartPulse, Wind, BarChart3,
   TrendingUp, Cpu, RefreshCw, Footprints, Route, TrendingDown, FileText, X,
-  User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Moon, Sun, Bell
+  User, Camera, Calendar, Mail, Phone, Ruler, Scale, ArrowLeft, Loader2, Moon, Sun, Flame, Sparkles
 } from "lucide-react";
 // Import store để lấy và cập nhật thông tin user (Nếu bạn dùng Zustand)
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { useNotificationStore } from "@/stores/useNotificationStore";
-import { toast } from "sonner";
+import NotificationBell from "@/components/NotificationBell";
+import OnboardingTour from "@/components/OnboardingTour";
 
 
 
@@ -43,6 +43,13 @@ export function HealthDashboardPage() {
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [isLoadingReports, setIsLoadingReports] = useState(false);
+  // Calo tiêu thụ & nhận định AI
+  const [calories, setCalories] = useState<number | null>(null);
+  const [calorieNote, setCalorieNote] = useState("");
+  const [calMissingProfile, setCalMissingProfile] = useState(false);
+  const [aiInsight, setAiInsight] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   // STATE QUẢN LÝ HỒ SƠ CÁ NHÂN
   const [profileData, setProfileData] = useState({
@@ -60,7 +67,6 @@ export function HealthDashboardPage() {
 
   // CÀI ĐẶT HỆ THỐNG — dùng global store để persist và áp dụng toàn trang
   const appSettings = useSettingsStore();
-  const { hasUnread, setHasUnread } = useNotificationStore();
 
 
   const [sessionStats, setSessionStats] = useState({
@@ -180,14 +186,7 @@ export function HealthDashboardPage() {
       });
     });
 
-    // Nhận cảnh báo ngã từ ESP32 (qua fall/alert topic)
-    socket.on("fallAlert", (data) => {
-      console.warn("🚨 Cảnh báo ngã:", data);
-      toast.error(`⚠️ Phát hiện ngã! Trạng thái: ${data.state}${data.reason ? ` — ${data.reason}` : ''}`, {
-        duration: 8000,
-      });
-      setHasUnread(true);
-    });
+    // Cảnh báo té ngã / chỉ số bất thường được xử lý toàn cục bởi <AlertCenter /> (components/AlertCenter.tsx)
 
     // Nhận snapshot 60 giây gần nhất từ ESP32 (nếu vừa mở trang)
     socket.on("sensorHistory", (hist: any) => {
@@ -216,7 +215,6 @@ export function HealthDashboardPage() {
       socket.off("disconnect");
       socket.off("sensorData");
       socket.off("deviceInfo");
-      socket.off("fallAlert");
       socket.off("sensorHistory");
       socket.disconnect();
       if (espTimeoutRef[0]) clearTimeout(espTimeoutRef[0]);
@@ -322,8 +320,51 @@ export function HealthDashboardPage() {
 
   const status = getHealthStatus();
 
+  // Tính calo tiêu thụ bằng AI dựa trên hồ sơ (tuổi, cân nặng, chiều cao) + dữ liệu bước chân từ ESP32
+  useEffect(() => {
+    if (!user?._id) return;
+    if (steps <= 0) { setCalories(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.post("users/calories", { steps, avgHr });
+        setCalories(Math.round(Number(res.data?.calories) || 0));
+        setCalorieNote(res.data?.note || "");
+        setCalMissingProfile(!!res.data?.missingProfile);
+      } catch (e) {
+        console.error("Lỗi tính calo:", e);
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [Math.floor(steps / 50), user?._id, user?.height, user?.weight, user?.dob, user?.gender]);
+
+  const runAiInsight = async () => {
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const res = await api.post("users/ai-insight", {
+        avgHr, minHr: sessionStats.minHr === 999 ? 0 : sessionStats.minHr, maxHr: sessionStats.maxHr,
+        avgSpo2, minSpo2: sessionStats.minSpo2 === 100 && sessionStats.count === 0 ? 0 : sessionStats.minSpo2, maxSpo2: sessionStats.maxSpo2,
+        steps, distanceKm: typeof distanceKm === 'number' ? distanceKm : 0, calories: calories ?? 0,
+      });
+      if (res.data?.empty) setAiError(res.data.summary || "Chưa có dữ liệu để phân tích.");
+      else setAiInsight(res.data);
+    } catch (e: any) {
+      setAiError(e?.response?.data?.message || "Không lấy được nhận định từ AI, vui lòng thử lại.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Tự động nhận định lần đầu khi mở tab Thống kê nếu đã có dữ liệu
+  useEffect(() => {
+    if (activeTab === 'statistics' && !aiInsight && !aiLoading && sessionStats.count > 0) runAiInsight();
+  }, [activeTab, sessionStats.count > 0]);
+
   return (
     <div className="flex flex-col md:flex-row bg-[#f5f7fb] dark:bg-[#0f172a] text-[#17212b] dark:text-white font-sans w-full min-h-[100dvh] md:min-h-[calc(100vh-65px)] transition-colors duration-300">
+
+      {/* Hướng dẫn sử dụng cho người dùng mới + nhập hồ sơ sức khoẻ */}
+      <OnboardingTour onStepTab={setActiveTab} />
 
       {/* ================= SIDEBAR ================= */}
       <aside className="hidden md:block w-[245px] shrink-0 sticky top-[65px] h-[calc(100vh-65px)] overflow-y-auto bg-white dark:bg-[#1e293b] border-r border-[#e8edf2] dark:border-[#334155] py-[25px] px-[15px] z-10 transition-colors duration-300">
@@ -390,16 +431,7 @@ export function HealthDashboardPage() {
             </div>
 
             {/* Notification Bell */}
-            <button
-              onClick={() => {
-                setHasUnread(false);
-                toast.success("Bạn không có thông báo mới nào");
-              }}
-              className="w-10 h-10 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center justify-center relative shadow-sm shrink-0"
-            >
-              <Bell className="w-5 h-5" />
-              {hasUnread && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>}
-            </button>
+            <NotificationBell />
 
             <div
               onClick={() => navigate('/profile')}
@@ -583,9 +615,9 @@ export function HealthDashboardPage() {
                       <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                         <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#2563eb" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#ef4444" domain={['auto', 'auto']} fontSize={11} tickLine={false} axisLine={false} />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} formatter={(value: any) => [`${Math.round(Number(value) || 0)} BPM`, 'Nhịp tim']} />
-                        <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="hr" name="Nhịp tim (BPM)" stroke="#ef4444" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
@@ -665,9 +697,9 @@ export function HealthDashboardPage() {
                       <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                         <XAxis dataKey="time" stroke="#8b96a5" fontSize={11} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#4385f5" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#06b6d4" domain={[90, 100]} fontSize={11} tickLine={false} axisLine={false} />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }} formatter={(value: any) => [`${Math.round(Number(value) || 0)}%`, 'SpO₂']} />
-                        <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="spo2" name="SpO2 (%)" stroke="#06b6d4" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
@@ -753,6 +785,23 @@ export function HealthDashboardPage() {
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[20px] transition-colors duration-300">
+                <div className="flex justify-between">
+                  <div>
+                    <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[3px]">Calo đã tiêu thụ</div>
+                    <div className="text-[25px] font-bold mt-[10px]">{calories === null ? '--' : calories} <small className="text-[14px] text-[#8b96a5] dark:text-slate-400">kcal</small></div>
+                  </div>
+                  <div className="w-[40px] h-[40px] rounded-[12px] flex justify-center items-center text-[#f97316] bg-[#ffedd5] dark:bg-[#f97316]/20">
+                    <Flame className="w-[20px] h-[20px]" />
+                  </div>
+                </div>
+                {calMissingProfile ? (
+                  <button onClick={() => setActiveTab('profile')} className="mt-2 text-[11px] text-[#f97316] underline text-left">Nhập chiều cao &amp; cân nặng để tính chính xác</button>
+                ) : calorieNote ? (
+                  <div className="mt-2 text-[11px] text-[#8b96a5] dark:text-slate-400 line-clamp-2">{calorieNote}</div>
+                ) : null}
+              </div>
             </div>
 
             <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] flex flex-col mb-[20px] transition-colors duration-300">
@@ -769,12 +818,12 @@ export function HealthDashboardPage() {
                     <LineChart data={liveData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={appSettings.darkMode ? '#334155' : '#e8edf2'} />
                       <XAxis dataKey="time" stroke="#8b96a5" fontSize={12} tickLine={false} axisLine={false} tickMargin={12} />
-                      <YAxis yAxisId="left" stroke="#2563eb" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#4385f5" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis yAxisId="left" stroke="#ef4444" domain={['auto', 'auto']} fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#06b6d4" domain={[90, 100]} fontSize={12} tickLine={false} axisLine={false} />
                       <Tooltip contentStyle={{ borderRadius: '12px', border: `1px solid ${appSettings.darkMode ? '#334155' : '#e8edf2'}`, backgroundColor: appSettings.darkMode ? '#1e293b' : 'white', color: appSettings.darkMode ? 'white' : 'black', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontSize: '13px', padding: '10px 15px' }} formatter={(value: any, name: any) => [`${Math.round(Number(value) || 0)} ${name === 'Nhịp tim' ? 'BPM' : '%'}`, name]} />
                       <Legend verticalAlign="top" height={40} iconType="circle" wrapperStyle={{ fontSize: '13px', color: appSettings.darkMode ? '#cbd5e1' : '#17212b', fontWeight: 500 }} />
-                      <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#2563eb" strokeWidth={3.5} dot={false} isAnimationActive={false} />
-                      <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#4385f5" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      <Line yAxisId="left" type="monotone" dataKey="hr" name="Nhịp tim" stroke="#ef4444" strokeWidth={3.5} dot={false} isAnimationActive={false} />
+                      <Line yAxisId="right" type="monotone" dataKey="spo2" name="SpO2" stroke="#06b6d4" strokeWidth={3.5} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -785,6 +834,58 @@ export function HealthDashboardPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* AI NHẬN ĐỊNH SỨC KHOẺ */}
+            <div className="w-full bg-white dark:bg-[#1e293b] border border-[#e8edf2] dark:border-[#334155] rounded-[18px] shadow-[0_10px_30px_rgba(20,35,55,0.06)] dark:shadow-none p-[23px] mb-[20px] transition-colors duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <div className="font-bold text-[16px] flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#8b5cf6]" />AI nhận định sức khoẻ</div>
+                  <div className="text-[#8b96a5] dark:text-slate-400 text-[12px] mt-[5px]">Đánh giá nhịp tim, SpO₂, bước chân, quãng đường &amp; calo dựa trên hồ sơ của bạn</div>
+                </div>
+                <button
+                  onClick={runAiInsight}
+                  disabled={aiLoading}
+                  className="px-4 py-2 rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-60 text-white text-[13px] font-bold flex items-center justify-center gap-2"
+                >
+                  {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {aiInsight ? 'Phân tích lại' : 'Phân tích bằng AI'}
+                </button>
+              </div>
+
+              {aiLoading && !aiInsight && <div className="text-[14px] text-slate-500">AI đang phân tích dữ liệu của bạn...</div>}
+              {aiError && <div className="text-[14px] text-red-500">{aiError}</div>}
+              {!aiInsight && !aiLoading && !aiError && (
+                <div className="text-[14px] text-slate-500">Nhấn “Phân tích bằng AI” để nhận nhận định và khuyến nghị cá nhân hoá.</div>
+              )}
+              {aiInsight && (
+                <div className="space-y-3">
+                  <div className={`p-4 rounded-xl border ${aiInsight.overall === 'Cảnh báo' ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30' : aiInsight.overall === 'Tốt' ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30' : 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30'}`}>
+                    <div className="font-bold text-[14px] mb-1">Tổng quan: {aiInsight.overall}</div>
+                    <div className="text-[14px] text-slate-700 dark:text-slate-200">{aiInsight.summary}</div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {aiInsight.heartRate && (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[13px]"><div className="font-bold text-[#ef4444] mb-1">❤️ Nhịp tim</div>{aiInsight.heartRate}</div>
+                    )}
+                    {aiInsight.spo2 && (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[13px]"><div className="font-bold text-[#06b6d4] mb-1">🫁 SpO₂</div>{aiInsight.spo2}</div>
+                    )}
+                    {aiInsight.activity && (
+                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[13px]"><div className="font-bold text-[#f97316] mb-1">🚶 Vận động &amp; calo</div>{aiInsight.activity}</div>
+                    )}
+                  </div>
+                  {Array.isArray(aiInsight.advice) && aiInsight.advice.length > 0 && (
+                    <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30">
+                      <div className="font-bold text-[14px] mb-2">💡 Khuyến nghị</div>
+                      <ul className="list-disc pl-5 space-y-1 text-[13px] text-slate-700 dark:text-slate-200">
+                        {aiInsight.advice.map((a: string, i: number) => <li key={i}>{a}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="text-[11px] text-slate-400">Nhận định do AI tạo ra chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.</div>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -171,6 +171,46 @@ export function getLocalDateString(d = new Date()) {
   return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
+// ==========================================
+// CẢNH BÁO CHỈ SỐ BẤT THƯỜNG (nhịp tim / SpO2)
+// ==========================================
+const HR_HIGH = 120, HR_LOW = 40, SPO2_LOW = 90;
+const CONSECUTIVE_NEEDED = 3;      // cần 3 lần đo liên tiếp bất thường mới báo (tránh nhiễu cảm biến)
+const ALERT_COOLDOWN_MS = 60 * 1000; // mỗi loại cảnh báo tối đa 1 lần/phút/user
+const anomalyCounters = new Map();   // `${userId}_${type}` → số lần liên tiếp
+const lastAlertAt = new Map();       // `${userId}_${type}` → timestamp
+
+function checkHealthAnomaly(user, hr, spo2) {
+  if (user.settings && user.settings.healthAlerts === false) return;
+  const uid = String(user._id);
+  const checks = [
+    { type: "hr_high", bad: hr > HR_HIGH, title: "Nhịp tim tăng cao bất thường",
+      message: `Nhịp tim hiện tại ${hr} BPM (vượt ngưỡng ${HR_HIGH} BPM). Hãy nghỉ ngơi, hít thở sâu; nếu kéo dài hoặc kèm khó chịu hãy liên hệ y tế.` },
+    { type: "hr_low", bad: hr > 0 && hr < HR_LOW, title: "Nhịp tim thấp bất thường",
+      message: `Nhịp tim hiện tại ${hr} BPM (dưới ngưỡng ${HR_LOW} BPM). Nếu bạn thấy chóng mặt, mệt hoặc choáng hãy liên hệ y tế.` },
+    { type: "spo2_low", bad: spo2 > 0 && spo2 < SPO2_LOW, title: "SpO₂ thấp bất thường",
+      message: `SpO₂ hiện tại ${spo2}% (dưới ngưỡng ${SPO2_LOW}%). Hãy kiểm tra vòng tay đeo đúng vị trí; nếu khó thở hãy đi khám ngay.` },
+  ];
+  for (const c of checks) {
+    const key = `${uid}_${c.type}`;
+    if (!c.bad) { anomalyCounters.set(key, 0); continue; }
+    const n = (anomalyCounters.get(key) || 0) + 1;
+    anomalyCounters.set(key, n);
+    if (n < CONSECUTIVE_NEEDED) continue;
+    if (Date.now() - (lastAlertAt.get(key) || 0) < ALERT_COOLDOWN_MS) continue;
+    lastAlertAt.set(key, Date.now());
+    console.log(`🚨 Cảnh báo ${c.type} cho user ${user.username}: HR=${hr}, SpO2=${spo2}`);
+    io.to(`user_${uid}`).emit("healthAlert", {
+      id: `${c.type}_${Date.now()}`,
+      type: c.type,
+      title: c.title,
+      message: c.message,
+      hr, spo2,
+      time: new Date().toISOString(),
+    });
+  }
+}
+
 mqttClient.on("message", async (topic, message) => {
   // ── Telemetry: dữ liệu sức khoẻ từ ESP32 ──────────────────────────────
   if (topic.endsWith("/telemetry")) {
@@ -207,6 +247,9 @@ mqttClient.on("message", async (topic, message) => {
         });
       }
 
+      // Phát hiện chỉ số bất thường → gửi cảnh báo riêng cho user này
+      checkHealthAnomaly(targetUser, hr, spo2);
+
       // Lưu vào DB nháp theo từng user và từng ngày riêng biệt
       if (hr > 0 && spo2 > 0) {
         const today = getLocalDateString();
@@ -234,9 +277,14 @@ mqttClient.on("message", async (topic, message) => {
       if (targetUser) {
         console.log(`🚨 Cảnh báo ngã cho user ${targetUser.username}:`, alert);
         io.to(`user_${targetUser._id}`).emit("fallAlert", {
+          id: `fall_${Date.now()}`,
+          type: "fall",
+          title: "Phát hiện té ngã!",
+          message: `Thiết bị phát hiện té ngã${alert.reason ? ` (${alert.reason})` : ""}. Hãy kiểm tra ngay tình trạng người đeo vòng.`,
           state: alert.state || "Unknown",
           reason: alert.reason || "",
           falls: alert.falls || 0,
+          time: new Date().toISOString(),
         });
       }
     } catch (e) {
